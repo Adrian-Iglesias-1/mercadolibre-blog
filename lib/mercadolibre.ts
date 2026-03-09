@@ -4,6 +4,32 @@ import { getCategoryBySlug, categories } from './categories';
 
 const ML_BASE_URL = 'https://www.mercadolibre.com.ar';
 
+// Configuración de Afiliado
+const AFFILIATE_PARAMS = {
+  matt_tool: '39858519',
+  matt_word: 'ji2014',
+  forceInApp: 'true'
+};
+
+/**
+ * Convierte una URL estándar de Mercado Libre en un link de afiliado
+ */
+function convertToAffiliateLink(url: string): string {
+  if (!url || url.startsWith('#')) return url;
+  
+  try {
+    const urlObj = new URL(url);
+    urlObj.searchParams.set('matt_tool', AFFILIATE_PARAMS.matt_tool);
+    urlObj.searchParams.set('matt_word', AFFILIATE_PARAMS.matt_word);
+    urlObj.searchParams.set('forceInApp', AFFILIATE_PARAMS.forceInApp);
+    return urlObj.toString();
+  } catch (e) {
+    // Si la URL es relativa o inválida para el constructor URL, intentamos concatenar manualmente
+    const separator = url.includes('?') ? '&' : '?';
+    return `${url}${separator}matt_tool=${AFFILIATE_PARAMS.matt_tool}&matt_word=${AFFILIATE_PARAMS.matt_word}&forceInApp=${AFFILIATE_PARAMS.forceInApp}`;
+  }
+}
+
 export async function getMLBestSellers(categorySlug?: string): Promise<Product[]> {
   const category = categorySlug ? getCategoryBySlug(categorySlug) : undefined;
   
@@ -43,15 +69,16 @@ export async function getMLBestSellers(categorySlug?: string): Promise<Product[]
         const priceText = priceRaw.replace(/\./g, '');
         
         const img = $el.find('img').first().attr('data-src') || $el.find('img').first().attr('src');
-        const link = $el.find('a').first().attr('href');
+        let link = $el.find('a').first().attr('href') || '';
 
         if (title && priceText && img && link) {
+          const fullLink = link.startsWith('http') ? link : `${ML_BASE_URL}${link}`;
           products.push({
             id: `best-${index}`,
             title,
             price: priceText,
             imageUrl: img.startsWith('http') ? img : `https:${img}`,
-            productUrl: link.startsWith('http') ? link : `${ML_BASE_URL}${link}`,
+            productUrl: convertToAffiliateLink(fullLink),
             category: category || getCategoryBySlug('tecnologia')!,
             brand: title.split(' ')[0]
           });
@@ -78,12 +105,13 @@ export async function getMLBestSellers(categorySlug?: string): Promise<Product[]
                     if (products.length >= 10) return;
                     const data = item.data;
                     if (data && data.title && data.price) {
+                      const fullLink = data.permalink.startsWith('http') ? data.permalink : `${ML_BASE_URL}${data.permalink}`;
                       products.push({
                         id: `best-json-${idx}-${products.length}`,
                         title: data.title,
                         price: data.price.toString(),
                         imageUrl: data.thumbnail,
-                        productUrl: data.permalink.startsWith('http') ? data.permalink : `${ML_BASE_URL}${data.permalink}`,
+                        productUrl: convertToAffiliateLink(fullLink),
                         category: category || getCategoryBySlug('tecnologia')!,
                         brand: data.title.split(' ')[0]
                       });
@@ -154,16 +182,17 @@ export async function getMLProducts(query: string, categorySlug?: string): Promi
         const priceText = priceRaw.replace(/\./g, '');
         
         const img = $el.find('img').first().attr('data-src') || $el.find('img').first().attr('src');
-        const link = $el.find('a').first().attr('href');
+        let link = $el.find('a').first().attr('href') || '';
 
         if (title && priceText && img && link) {
+          const fullLink = link.startsWith('http') ? link : `${ML_BASE_URL}${link}`;
           products.push({
-            id: `ml-${category.id}-${index}-${query.substring(0,3)}`,
+            id: `ml-${category!.id}-${index}-${query.substring(0,3)}`,
             title,
             price: priceText, // Guardamos solo el número como string para formatearlo en el componente
             imageUrl: img.startsWith('http') ? img : `https:${img}`,
-            productUrl: link.startsWith('http') ? link : `${ML_BASE_URL}${link}`,
-            category,
+            productUrl: convertToAffiliateLink(fullLink),
+            category: category!,
             brand: title.split(' ')[0]
           });
         }
