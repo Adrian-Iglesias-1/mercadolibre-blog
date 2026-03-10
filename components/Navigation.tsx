@@ -23,8 +23,12 @@ export default function Navigation() {
             {categories.map((category) => (
               <Link
                 key={category.id}
-                href={`/${category.slug}`}
-                className="flex items-center space-x-2 text-gray-700 hover:text-mercado-yellow transition-colors duration-200"
+                href={category.id === 'blog' ? '/blog' : `/${category.id}`}
+                className={`flex items-center space-x-2 transition-colors duration-200 ${
+                  category.id === 'blog' 
+                    ? 'bg-purple-600 text-white px-4 py-2 rounded-full hover:bg-purple-700' 
+                    : 'text-gray-700 hover:text-mercado-yellow'
+                }`}
               >
                 <span className="text-xl">{category.icon}</span>
                 <span className="font-medium">{category.name}</span>
@@ -56,8 +60,12 @@ export default function Navigation() {
               {categories.map((category) => (
                 <Link
                   key={category.id}
-                  href={`/${category.slug}`}
-                  className="flex items-center space-x-2 text-gray-700 hover:text-mercado-yellow block px-3 py-2 rounded-md text-base font-medium"
+                  href={category.id === 'blog' ? '/blog' : `/${category.id}`}
+                  className={`flex items-center space-x-2 block px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                    category.id === 'blog'
+                      ? 'bg-purple-600 text-white'
+                      : 'text-gray-700 hover:text-mercado-yellow hover:bg-gray-50'
+                  }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   <span className="text-xl">{category.icon}</span>

@@ -4,12 +4,12 @@ import ClientPage from './ClientPage';
 import { getMLProducts } from '@/lib/mercadolibre';
 
 export const metadata: Metadata = {
-  title: 'Perfumes - ShopHub',
-  description: 'Las mejores fragancias y perfumes exclusivos con ofertas imperdibles',
+  title: 'Hogar - ShopHub',
+  description: 'Todo para decorar y mejorar tu casa con las mejores ofertas',
 };
 
-async function PerfumeProductsList({ searchParams }: { searchParams?: any }) {
-  const products = await getMLProducts('perfumes importados', 'perfumes');
+async function HogarProductsList({ searchParams }: { searchParams?: any }) {
+  const products = await getMLProducts('decoracion hogar muebles', 'hogar');
   return <ClientPage products={products} searchParams={searchParams} />;
 }
 
@@ -29,14 +29,14 @@ function LoadingSkeleton() {
   );
 }
 
-export default function PerfumesPage({
+export default function HogarPage({
   searchParams,
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   return (
     <Suspense fallback={<LoadingSkeleton />}>
-      <PerfumeProductsList searchParams={searchParams} />
+      <HogarProductsList searchParams={searchParams} />
     </Suspense>
   );
 }

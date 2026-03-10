@@ -4,12 +4,12 @@ import ClientPage from './ClientPage';
 import { getMLProducts } from '@/lib/mercadolibre';
 
 export const metadata: Metadata = {
-  title: 'Perfumes - ShopHub',
-  description: 'Las mejores fragancias y perfumes exclusivos con ofertas imperdibles',
+  title: 'Gaming - ShopHub',
+  description: 'Los mejores equipos y accesorios para gamers profesionales',
 };
 
-async function PerfumeProductsList({ searchParams }: { searchParams?: any }) {
-  const products = await getMLProducts('perfumes importados', 'perfumes');
+async function GamingProductsList({ searchParams }: { searchParams?: any }) {
+  const products = await getMLProducts('consolas videojuegos', 'gaming');
   return <ClientPage products={products} searchParams={searchParams} />;
 }
 
@@ -29,14 +29,14 @@ function LoadingSkeleton() {
   );
 }
 
-export default function PerfumesPage({
+export default function GamingPage({
   searchParams,
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   return (
     <Suspense fallback={<LoadingSkeleton />}>
-      <PerfumeProductsList searchParams={searchParams} />
+      <GamingProductsList searchParams={searchParams} />
     </Suspense>
   );
 }

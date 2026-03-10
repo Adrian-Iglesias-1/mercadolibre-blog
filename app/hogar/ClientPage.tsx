@@ -15,7 +15,7 @@ interface ClientPageProps {
 export default function ClientPage({ products, searchParams }: ClientPageProps) {
   const router = useRouter();
   const [filters, setFilters] = useState<FilterOptions>({
-    category: 'tecnologia',
+    category: 'hogar',
     priceRange: searchParams?.minPrice && searchParams?.maxPrice ? 
       [parseInt(searchParams.minPrice as string), parseInt(searchParams.maxPrice as string)] : 
       undefined,
@@ -36,7 +36,7 @@ export default function ClientPage({ products, searchParams }: ClientPageProps) 
     if (newFilters.sortBy) params.set('sort', newFilters.sortBy);
     
     const queryString = params.toString();
-    router.push(queryString ? `/tecnologia?${queryString}` : '/tecnologia');
+    router.push(queryString ? `/hogar?${queryString}` : '/hogar');
   };
 
   return (
@@ -44,11 +44,10 @@ export default function ClientPage({ products, searchParams }: ClientPageProps) 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            💻 Tecnología
+            🏠 Hogar
           </h1>
           <p className="text-xl text-gray-600 max-w-3xl">
-            Descubre los mejores productos tecnológicos con nuestras recomendaciones expertas. 
-            Desde auriculares gamer hasta los últimos gadgets del mercado.
+            Todo para decorar y mejorar tu casa con las mejores ofertas seleccionadas.
           </p>
         </div>
 

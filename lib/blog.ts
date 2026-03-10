@@ -19,11 +19,12 @@ export function getAllBlogPosts(): BlogPost[] {
         const fileContents = fs.readFileSync(fullPath, 'utf8');
         
         // Parse frontmatter
-        const frontmatterRegex = /^---\n([\s\S]*?)\n---/;
+        const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
         const match = fileContents.match(frontmatterRegex);
         
         if (!match) {
-          throw new Error(`No frontmatter found in ${fileName}`);
+          console.error(`No frontmatter found in ${fileName}`);
+          return null;
         }
 
         const frontmatter = match[1];
@@ -31,11 +32,12 @@ export function getAllBlogPosts(): BlogPost[] {
         
         // Parse YAML frontmatter
         const data: any = {};
-        frontmatter.split('\n').forEach(line => {
-          const [key, ...valueParts] = line.split(':');
-          if (key && valueParts.length > 0) {
-            const value = valueParts.join(':').trim();
-            data[key.trim()] = value.replace(/^["']|["']$/g, ''); // Remove quotes
+        frontmatter.split(/\r?\n/).forEach(line => {
+          const separatorIndex = line.indexOf(':');
+          if (separatorIndex !== -1) {
+            const key = line.slice(0, separatorIndex).trim();
+            const value = line.slice(separatorIndex + 1).trim();
+            data[key] = value.replace(/^["']|["']$/g, ''); // Remove quotes
           }
         });
 
@@ -50,10 +52,12 @@ export function getAllBlogPosts(): BlogPost[] {
           updatedAt: data.updatedAt || data.publishedAt || new Date().toISOString(),
           category: data.category || 'blog',
           tags: data.tags ? data.tags.split(',').map((tag: string) => tag.trim()) : [],
-          featured: data.featured === 'true',
-          imageUrl: data.imageUrl || ''
+          featured: data.featured === 'true' || data.featured === true,
+          imageUrl: data.imageUrl || '',
+          searchQuery: data.searchQuery || ''
         };
-      });
+      })
+      .filter((post): post is BlogPost => post !== null);
 
     // Sort by date (newest first)
     return allPostsData.sort((a, b) => 

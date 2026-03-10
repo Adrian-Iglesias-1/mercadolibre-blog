@@ -59,19 +59,29 @@ export default function Filters({ categories, filters, onFiltersChange }: Filter
 
       {/* Categories */}
       <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Categorías</h4>
-        <div className="space-y-2">
+        <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Categorías</h4>
+        <div className="space-y-1">
           {categories.map((category) => (
-            <label key={category.id} className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedCategory === category.id}
-                onChange={() => handleCategoryChange(category.id)}
-                className="rounded text-mercado-yellow focus:ring-mercado-yellow"
-              />
+            <label 
+              key={category.id} 
+              className={`flex items-center space-x-3 cursor-pointer p-2 rounded-xl transition-all duration-200 group ${
+                selectedCategory === category.id ? 'bg-gray-50' : 'hover:bg-gray-50/80'
+              }`}
+            >
+              <div className="relative flex items-center justify-center">
+                <input
+                  type="checkbox"
+                  checked={selectedCategory === category.id}
+                  onChange={() => handleCategoryChange(category.id)}
+                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:bg-mercado-yellow checked:border-mercado-yellow hover:border-mercado-yellow focus:outline-none"
+                />
+                <svg className="absolute h-3.5 w-3.5 text-gray-900 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              </div>
               <span className="flex items-center space-x-2">
-                <span>{category.icon}</span>
-                <span className="text-sm">{category.name}</span>
+                <span className="text-lg group-hover:scale-110 transition-transform">{category.icon}</span>
+                <span className={`text-sm font-medium transition-colors ${selectedCategory === category.id ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
+                  {category.name}
+                </span>
               </span>
             </label>
           ))}

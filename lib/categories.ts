@@ -12,10 +12,26 @@ export const categories: Category[] = [
   {
     id: 'perfumes',
     name: 'Perfumes',
-    slug: 'perfumes',
+    slug: 'belleza-y-cuidado-personal',
     description: 'Fragancias exclusivas para hombres y mujeres',
     icon: '🌸',
     color: 'bg-pink-500'
+  },
+  {
+    id: 'hogar',
+    name: 'Hogar',
+    slug: 'hogar-muebles-y-jardin',
+    description: 'Todo para decorar y mejorar tu casa',
+    icon: '🏠',
+    color: 'bg-orange-500'
+  },
+  {
+    id: 'gaming',
+    name: 'Gaming',
+    slug: 'consolas-y-videojuegos',
+    description: 'Equipamiento profesional para gamers',
+    icon: '🎮',
+    color: 'bg-indigo-600'
   },
   {
     id: 'blog',

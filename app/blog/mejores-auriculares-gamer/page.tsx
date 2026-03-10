@@ -1,18 +1,11 @@
-import { scrapeMercadoLibre, loadProductsFromFile } from '@/lib/scraper';
+import { getMLProducts } from '@/lib/mercadolibre';
 import ProductCard from '@/components/ProductCard';
 import Link from 'next/link';
 
 async function getProducts() {
   try {
-    // Try to load from file first
-    let products = loadProductsFromFile();
-    
-    // If no products exist, scrape them
-    if (products.length === 0) {
-      products = await scrapeMercadoLibre('auriculares gamer');
-    }
-    
-    return products;
+    const products = await getMLProducts('auriculares gamer', 'tecnologia');
+    return products.slice(0, 9); // Mostrar los primeros 9
   } catch (error) {
     console.error('Error getting products:', error);
     return [];

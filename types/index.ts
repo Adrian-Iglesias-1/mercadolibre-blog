@@ -34,6 +34,7 @@ export interface BlogPost {
   tags: string[];
   featured: boolean;
   imageUrl?: string;
+  searchQuery?: string;
 }
 
 export interface FilterOptions {

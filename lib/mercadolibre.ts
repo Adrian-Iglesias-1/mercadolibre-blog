@@ -1,6 +1,6 @@
 import * as cheerio from 'cheerio';
 import { Product, Category } from '@/types';
-import { getCategoryBySlug, categories } from './categories';
+import { getCategoryBySlug, getCategoryById, categories } from './categories';
 
 const ML_BASE_URL = 'https://www.mercadolibre.com.ar';
 
@@ -30,8 +30,12 @@ function convertToAffiliateLink(url: string): string {
   }
 }
 
-export async function getMLBestSellers(categorySlug?: string): Promise<Product[]> {
-  const category = categorySlug ? getCategoryBySlug(categorySlug) : undefined;
+export async function getMLBestSellers(categoryIdentifier?: string): Promise<Product[]> {
+  const category = categoryIdentifier 
+    ? (getCategoryBySlug(categoryIdentifier) || getCategoryById(categoryIdentifier)) 
+    : undefined;
+  
+  const categorySlug = category?.slug || categoryIdentifier;
   
   // URL de más vendidos de MercadoLibre
   const url = categorySlug 
@@ -134,14 +138,16 @@ export async function getMLBestSellers(categorySlug?: string): Promise<Product[]
   }
 }
 
-export async function getMLProducts(query: string, categorySlug?: string): Promise<Product[]> {
-  let category = categorySlug ? getCategoryBySlug(categorySlug) : undefined;
+export async function getMLProducts(query: string, categoryIdentifier?: string): Promise<Product[]> {
+  let category = categoryIdentifier 
+    ? (getCategoryBySlug(categoryIdentifier) || getCategoryById(categoryIdentifier)) 
+    : undefined;
 
   // Si no hay categoría, intentamos detectarla por el query
   if (!category) {
     const q = query.toLowerCase();
     if (q.includes('perfume') || q.includes('fragancia')) {
-      category = getCategoryBySlug('perfumes');
+      category = getCategoryBySlug('belleza-y-cuidado-personal');
     } else {
       category = getCategoryBySlug('tecnologia'); // Default
     }
