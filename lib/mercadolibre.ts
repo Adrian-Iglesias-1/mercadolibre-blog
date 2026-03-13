@@ -1,214 +1,156 @@
 import * as cheerio from 'cheerio';
 import { Product, Category } from '@/types';
-import { getCategoryBySlug, getCategoryById, categories } from './categories';
+import { getCategoryBySlug, getCategoryById } from './categories';
+import { getCachedProducts, setCachedProducts } from './real-time-cache';
+import { getFallbackProducts } from './fallback-data';
+import { getProductsFromSheet } from './google-sheets';
 
 const ML_BASE_URL = 'https://www.mercadolibre.com.ar';
+const MAX_PRODUCTS = 24;
+const CACHE_TTL = 3600;
 
-// Configuración de Afiliado
-const AFFILIATE_PARAMS = {
-  matt_tool: '39858519',
-  matt_word: 'ji2014',
-  forceInApp: 'true'
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept-Language': 'es-AR,es;q=0.9',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache'
 };
 
-/**
- * Convierte una URL estándar de Mercado Libre en un link de afiliado
- */
-function convertToAffiliateLink(url: string): string {
-  if (!url || url.startsWith('#')) return url;
-  
-  try {
-    const urlObj = new URL(url);
-    urlObj.searchParams.set('matt_tool', AFFILIATE_PARAMS.matt_tool);
-    urlObj.searchParams.set('matt_word', AFFILIATE_PARAMS.matt_word);
-    urlObj.searchParams.set('forceInApp', AFFILIATE_PARAMS.forceInApp);
-    return urlObj.toString();
-  } catch (e) {
-    // Si la URL es relativa o inválida para el constructor URL, intentamos concatenar manualmente
-    const separator = url.includes('?') ? '&' : '?';
-    return `${url}${separator}matt_tool=${AFFILIATE_PARAMS.matt_tool}&matt_word=${AFFILIATE_PARAMS.matt_word}&forceInApp=${AFFILIATE_PARAMS.forceInApp}`;
-  }
+function toHighResImage(url: string | undefined | null): string {
+  if (!url || url.includes('data:image')) return '';
+  let n = url.trim();
+  if (n.startsWith('//')) n = `https:${n}`;
+  if (n.startsWith('http://')) n = n.replace('http://', 'https://');
+  if (n.includes('pixel.gif') || n.includes('loading.gif')) return '';
+  return n.replace(/-[I]\./, '-V.');
 }
 
-export async function getMLBestSellers(categoryIdentifier?: string): Promise<Product[]> {
-  const category = categoryIdentifier 
-    ? (getCategoryBySlug(categoryIdentifier) || getCategoryById(categoryIdentifier)) 
-    : undefined;
+function normalizeItem(item: any, category: Category): Product | null {
+  const title = item.title || item.name || item.text || '';
+  const id = item.id || item.item_id || '';
+  const price = item.price?.amount || item.price || (item.installments?.amount * item.installments?.quantity) || 0;
+  const link = item.permalink || item.url || '';
+  const rawImg = item.thumbnail || (item.pictures && item.pictures[0]?.url) || item.image || '';
   
-  const categorySlug = category?.slug || categoryIdentifier;
-  
-  // URL de más vendidos de MercadoLibre
-  const url = categorySlug 
-    ? `${ML_BASE_URL}/mas-vendidos/${categorySlug}`
-    : `${ML_BASE_URL}/mas-vendidos`;
+  const imageUrl = toHighResImage(rawImg);
+  if (!title || !price || !imageUrl || !id) return null;
 
+  return {
+    id,
+    title,
+    price: Math.floor(price).toString(),
+    imageUrl,
+    productUrl: link,
+    category,
+    brand: item.attributes?.find((a: any) => a.id === 'BRAND')?.value_name || title.split(' ')[0],
+  };
+}
+
+function extractFromState(html: string, category: Category): Product[] {
   try {
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      next: { revalidate: 3600 }
-    });
-
-    if (!response.ok) throw new Error('Error al conectar con MercadoLibre');
-
-    const html = await response.text();
     const $ = cheerio.load(html);
-    let products: Product[] = [];
-
-    // Intento 1: Scraping estándar por selectores CSS
-    const selectors = [
-      '.ui-search-layout__item',
-      '.poly-card__container',
-      '.promotion-item',
-      '.ui-search-result__wrapper'
-    ];
-
-    for (const selector of selectors) {
-      $(selector).slice(0, 10).each((index, element) => {
-        const $el = $(element);
-        const title = $el.find('.ui-search-item__title, .poly-component__title, .promotion-item__title, .poly-card__title').first().text().trim();
+    let results: any[] = [];
+    
+    $('script').each((_, script) => {
+      const content = $(script).html() || '';
+      if (content.includes('window.__PRELOADED_STATE__')) {
+        const match = content.match(/window\.__PRELOADED_STATE__\s*=\s*({[\s\S]+?});/) || 
+                      content.match(/window\.__PRELOADED_STATE__\s*=\s*({[\s\S]+?})\n/);
         
-        let priceRaw = $el.find('.andes-money-amount__fraction, .price-tag-amount').first().text().trim();
-        const priceText = priceRaw.replace(/\./g, '');
-        
-        const img = $el.find('img').first().attr('data-src') || $el.find('img').first().attr('src');
-        let link = $el.find('a').first().attr('href') || '';
-
-        if (title && priceText && img && link) {
-          const fullLink = link.startsWith('http') ? link : `${ML_BASE_URL}${link}`;
-          products.push({
-            id: `best-${index}`,
-            title,
-            price: priceText,
-            imageUrl: img.startsWith('http') ? img : `https:${img}`,
-            productUrl: convertToAffiliateLink(fullLink),
-            category: category || getCategoryBySlug('tecnologia')!,
-            brand: title.split(' ')[0]
-          });
-        }
-      });
-      if (products.length > 0) break;
-    }
-
-    // Intento 2: Extracción de __PRELOADED_STATE__ (Para páginas tipo landing/SPA de ML)
-    if (products.length === 0) {
-      const scripts = $('script');
-      scripts.each((i, script) => {
-        const content = $(script).html();
-        if (content && content.includes('__PRELOADED_STATE__')) {
+        if (match && match[1]) {
           try {
-            const jsonMatch = content.match(/window\.__PRELOADED_STATE__\s*=\s*({.*?});/);
-            if (jsonMatch) {
-              const state = JSON.parse(jsonMatch[1]);
-              const components = state.dataLanding?.components || [];
-              
-              components.forEach((comp: any) => {
-                if (comp.items && Array.isArray(comp.items)) {
-                  comp.items.forEach((item: any, idx: number) => {
-                    if (products.length >= 10) return;
-                    const data = item.data;
-                    if (data && data.title && data.price) {
-                      const fullLink = data.permalink.startsWith('http') ? data.permalink : `${ML_BASE_URL}${data.permalink}`;
-                      products.push({
-                        id: `best-json-${idx}-${products.length}`,
-                        title: data.title,
-                        price: data.price.toString(),
-                        imageUrl: data.thumbnail,
-                        productUrl: convertToAffiliateLink(fullLink),
-                        category: category || getCategoryBySlug('tecnologia')!,
-                        brand: data.title.split(' ')[0]
-                      });
-                    }
-                  });
-                }
-              });
-            }
+            const state = JSON.parse(match[1]);
+            results = state?.initialState?.components?.results || 
+                      state?.initialState?.results || 
+                      state?.results || 
+                      state?.initialState?.search?.results || [];
           } catch (e) {
-            console.error('Error parsing __PRELOADED_STATE__:', e);
+            const parts = content.split('window.__PRELOADED_STATE__ = ');
+            if (parts[1]) {
+              const jsonStr = parts[1].substring(0, parts[1].lastIndexOf('}') + 1);
+              const state = JSON.parse(jsonStr);
+              results = state?.initialState?.results || state?.initialState?.components?.results || [];
+            }
           }
         }
-      });
-    }
+      }
+    });
 
-    return products.slice(0, 10);
-  } catch (error) {
-    console.error(`Error scraping Best Sellers:`, error);
+    return results
+      .map(item => normalizeItem(item, category))
+      .filter((p): p is Product => p !== null);
+  } catch (e) {
     return [];
   }
 }
 
-export async function getMLProducts(query: string, categoryIdentifier?: string): Promise<Product[]> {
-  let category = categoryIdentifier 
-    ? (getCategoryBySlug(categoryIdentifier) || getCategoryById(categoryIdentifier)) 
-    : undefined;
+function extractFromDOM(html: string, category: Category): Product[] {
+  const $ = cheerio.load(html);
+  const products: Product[] = [];
+  const itemSelector = '.ui-search-layout__item, .poly-card__container, .ui-recommendations-card, .promotion-item, .ui-search-result, .andes-card';
 
-  // Si no hay categoría, intentamos detectarla por el query
-  if (!category) {
-    const q = query.toLowerCase();
-    if (q.includes('perfume') || q.includes('fragancia')) {
-      category = getCategoryBySlug('belleza-y-cuidado-personal');
-    } else {
-      category = getCategoryBySlug('tecnologia'); // Default
-    }
-  }
-
-  if (!category) return [];
-
-  const searchUrl = `${ML_BASE_URL}/jm/search?as_word=${encodeURIComponent(query)}`;
-
-  try {
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      },
-      next: { revalidate: 3600, tags: ['products', `search-${query}`] }
+  $(itemSelector).each((i, el) => {
+    if (products.length >= MAX_PRODUCTS) return false;
+    const $el = $(el);
+    const title = $el.find('.ui-search-item__title, .poly-component__title, .ui-recommendations-card__title, .promotion-item__title').first().text().trim();
+    const price = $el.find('.andes-money-amount__fraction').first().text().replace(/\./g, '').trim();
+    const link = $el.find('a').first().attr('href') || '';
+    
+    let img = '';
+    $el.find('img').each((_, imgEl) => {
+      const src = $(imgEl).attr('data-src') || $(imgEl).attr('data-lazy-src') || $(imgEl).attr('src');
+      const normalized = toHighResImage(src);
+      if (normalized && !img) img = normalized;
     });
 
-    if (!response.ok) throw new Error('Error al conectar con MercadoLibre');
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    const products: Product[] = [];
-
-    const selectors = [
-      '.ui-search-layout__item',
-      '.poly-card__container',
-      '.ui-search-result__wrapper'
-    ];
-
-    for (const selector of selectors) {
-      $(selector).slice(0, 24).each((index, element) => {
-        const $el = $(element);
-
-        const title = $el.find('.ui-search-item__title, .poly-component__title, [data-testid="title"]').first().text().trim();
-        
-        // Limpiamos el precio: eliminamos puntos de miles para quedarnos con el número base
-        let priceRaw = $el.find('.andes-money-amount__fraction, .price-tag-amount').first().text().trim();
-        const priceText = priceRaw.replace(/\./g, '');
-        
-        const img = $el.find('img').first().attr('data-src') || $el.find('img').first().attr('src');
-        let link = $el.find('a').first().attr('href') || '';
-
-        if (title && priceText && img && link) {
-          const fullLink = link.startsWith('http') ? link : `${ML_BASE_URL}${link}`;
-          products.push({
-            id: `ml-${category!.id}-${index}-${query.substring(0,3)}`,
-            title,
-            price: priceText, // Guardamos solo el número como string para formatearlo en el componente
-            imageUrl: img.startsWith('http') ? img : `https:${img}`,
-            productUrl: convertToAffiliateLink(fullLink),
-            category: category!,
-            brand: title.split(' ')[0]
-          });
-        }
+    if (title && price && img && link) {
+      products.push({
+        id: `dom-${i}-${category.id}`,
+        title,
+        price,
+        imageUrl: img,
+        productUrl: link,
+        category,
+        brand: title.split(' ')[0]
       });
-      if (products.length > 0) break;
+    }
+  });
+  return products;
+}
+
+export async function getMLProducts(query: string, categoryId?: string): Promise<Product[]> {
+  const category = getCategoryById(categoryId || 'tecnologia') || getCategoryBySlug('computacion')!;
+  const url = `${ML_BASE_URL}/jm/search?as_word=${encodeURIComponent(query)}`;
+  
+  try {
+    const response = await fetch(url, { headers: FETCH_HEADERS });
+    const html = await response.text();
+    let products = extractFromState(html, category);
+    if (products.length === 0) products = extractFromDOM(html, category);
+    
+    return products.length > 0 ? products : getFallbackProducts(categoryId);
+  } catch (e) {
+    return getFallbackProducts(categoryId);
+  }
+}
+
+export async function getMLBestSellers(categoryId?: string): Promise<Product[]> {
+  try {
+    // Retornar exclusivamente los productos de la planilla
+    const sheetProducts = await getProductsFromSheet();
+    
+    // Si la planilla tiene productos, devolverlos (limitado a 10)
+    if (sheetProducts.length > 0) {
+      return sheetProducts.slice(0, 10);
     }
 
-    return products;
-  } catch (error) {
-    console.error(`Error scraping ML para ${query}:`, error);
-    return [];
+    // Si la planilla está vacía, solo entonces usamos el fallback como seguridad
+    const category = getCategoryById(categoryId || 'tecnologia') || getCategoryBySlug('computacion')!;
+    return getMLProducts(`mas vendidos ${category.name}`, category.id);
+  } catch (e) {
+    console.error('Error in getMLBestSellers:', e);
+    const category = getCategoryById(categoryId || 'tecnologia') || getCategoryBySlug('computacion')!;
+    return getMLProducts(`mas vendidos ${category.name}`, category.id);
   }
 }

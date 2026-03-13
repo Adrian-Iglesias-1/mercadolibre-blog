@@ -1,36 +1,30 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { Product } from '@/types';
 import ProductGrid from '@/components/ProductGrid';
-import Filters from '@/components/Filters';
-import { categories } from '@/lib/categories';
-import { Product, FilterOptions } from '@/types';
+import { BlogPost } from '@/types';
+import Link from 'next/link';
 
 interface SearchResultsProps {
   query: string;
-  initialSearchParams?: { [key: string]: string | string[] | undefined };
+  category: string;
+  blogResults: BlogPost[];
 }
 
-function SearchResults({ query, initialSearchParams }: SearchResultsProps) {
+function SearchResults({ query, category, blogResults }: SearchResultsProps) {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [filters, setFilters] = useState<FilterOptions>({
-    category: (initialSearchParams?.category as string) || undefined,
-    priceRange: initialSearchParams?.minPrice && initialSearchParams?.maxPrice ? 
-      [parseInt(initialSearchParams.minPrice as string), parseInt(initialSearchParams.maxPrice as string)] : 
-      undefined,
-    brand: (initialSearchParams?.brand as string) || undefined,
-    sortBy: (initialSearchParams?.sort as FilterOptions['sortBy']) || undefined
-  });
   
-  const router = useRouter();
-
   useEffect(() => {
     async function performSearch() {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/products?q=${encodeURIComponent(query)}`);
+        const searchUrl = new URL('/api/products', window.location.origin);
+        if (query) searchUrl.searchParams.append('q', query);
+        if (category) searchUrl.searchParams.append('category', category);
+
+        const response = await fetch(searchUrl.toString());
         if (!response.ok) throw new Error('Search failed');
         const searchResults = await response.json();
         setProducts(searchResults);
@@ -42,7 +36,7 @@ function SearchResults({ query, initialSearchParams }: SearchResultsProps) {
       }
     }
 
-    if (query.trim().length >= 2) {
+    if (query.trim().length >= 2 || category) {
       performSearch();
     } else {
       const loadDefaults = async () => {
@@ -59,74 +53,126 @@ function SearchResults({ query, initialSearchParams }: SearchResultsProps) {
       };
       loadDefaults();
     }
-  }, [query]);
-
-  const handleFiltersChange = (newFilters: FilterOptions) => {
-    setFilters(newFilters);
-    
-    const params = new URLSearchParams();
-    params.set('q', query);
-    
-    if (newFilters.category) params.set('category', newFilters.category);
-    if (newFilters.priceRange) {
-      params.set('minPrice', newFilters.priceRange[0].toString());
-      params.set('maxPrice', newFilters.priceRange[1].toString());
-    }
-    if (newFilters.brand) params.set('brand', newFilters.brand);
-    if (newFilters.sortBy) params.set('sort', newFilters.sortBy);
-    
-    router.push(`/search?${params.toString()}`);
-  };
+  }, [query, category]);
 
   if (isLoading) {
     return (
-      <div className="text-center py-12">
-        <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-mercado-yellow"></div>
-        <p className="mt-4 text-gray-600">Buscando productos...</p>
+      <div className="flex flex-col items-center justify-center py-20">
+        <div className="w-16 h-16 border-4 border-accent-sh/20 border-t-accent-sh rounded-full animate-spin"></div>
+        <p className="mt-6 text-white/50 font-syne tracking-widest uppercase text-sm">Buscando en el catálogo...</p>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col lg:flex-row gap-8">
-      <div className="lg:w-80 flex-shrink-0">
-        <Filters 
-          categories={categories} 
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-        />
-      </div>
-      <div className="flex-1">
+    <div className="space-y-24">
+      {/* Sección de Productos */}
+      <section>
+        <div className="flex items-center gap-4 mb-8">
+          <h2 className="text-2xl font-syne font-bold text-white">
+            {category ? `Productos en ${category}` : 'Productos Encontrados'}
+          </h2>
+          <div className="h-[1px] flex-1 bg-white/10"></div>
+          <span className="text-accent-sh font-bold text-sm bg-accent-sh/10 px-3 py-1 rounded-full border border-accent-sh/20">
+            {products.length} {products.length === 1 ? 'resultado' : 'resultados'}
+          </span>
+        </div>
+
         {products.length > 0 ? (
-          <ProductGrid products={products} filters={filters} />
+          <ProductGrid products={products} />
         ) : (
-          <div className="bg-white p-8 rounded-2xl shadow-sm text-center">
-            <p className="text-xl text-gray-600">No encontramos resultados exactos para "{query}".</p>
-            <p className="text-gray-500 mt-2">Intentá con otras palabras clave.</p>
+          <div className="bg-white/5 backdrop-blur-xl border border-white/10 p-12 rounded-3xl text-center">
+            <div className="text-6xl mb-4">🏜️</div>
+            <h3 className="text-xl font-syne font-bold text-white mb-2">Sin productos</h3>
+            <p className="text-white/40">
+              No hay productos que coincidan con {query ? `"${query}"` : 'esta categoría'}.
+            </p>
           </div>
         )}
-      </div>
+      </section>
+
+      {/* Sección de Blog (Valor Agregado) */}
+      {blogResults.length > 0 && (
+        <section>
+          <div className="flex items-center gap-4 mb-8">
+            <h2 className="text-2xl font-syne font-bold text-white">Guías y Artículos Recomendados</h2>
+            <div className="h-[1px] flex-1 bg-white/10"></div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {blogResults.map((post) => (
+              <Link 
+                key={post.id} 
+                href={`/blog/${post.slug}`}
+                className="group bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-all hover:translate-y-[-4px]"
+              >
+                <div className="p-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-[10px] font-bold tracking-widest uppercase px-2 py-0.5 rounded bg-accent-sh text-black-sh">
+                      {post.category}
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-syne font-bold text-white group-hover:text-accent-sh transition-colors line-clamp-2">
+                    {post.title}
+                  </h3>
+                  <p className="text-white/40 text-sm mt-3 line-clamp-3">
+                    {post.excerpt}
+                  </p>
+                  <div className="mt-6 flex items-center text-accent-sh text-xs font-bold tracking-widest uppercase gap-2 opacity-0 group-hover:opacity-100 transition-all translate-x-[-10px] group-hover:translate-x-0">
+                    Leer guía completa
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
 
-export default function ClientPage({ searchParams }: { searchParams?: { [key: string]: string | string[] | undefined } }) {
+export default function ClientPage({ 
+  searchParams, 
+  blogResults = [] 
+}: { 
+  searchParams?: { [key: string]: string | string[] | undefined },
+  blogResults?: BlogPost[]
+}) {
   const query = (searchParams?.q as string) || '';
+  const category = (searchParams?.category as string) || '';
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            🔍 Resultados de Búsqueda
+    <div className="min-h-screen bg-black-sh pt-32 pb-20">
+      {/* Background Decor */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-[-10%] right-[-10%] w-[50%] h-[50%] bg-accent-sh/5 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] left-[-10%] w-[50%] h-[50%] bg-blue-500/5 blur-[120px] rounded-full"></div>
+      </div>
+
+      <div className="relative max-w-7xl mx-auto px-6 md:px-12">
+        <div className="mb-16">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-accent-sh text-xs font-bold tracking-widest uppercase mb-6">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            Explorador Inteligente
+          </div>
+          
+          <h1 className="text-5xl md:text-7xl font-syne font-black text-white tracking-tighter mb-6">
+            {query ? (
+              <>Resultados para <span className="text-accent-sh">"{query}"</span></>
+            ) : category ? (
+              <>Categoría: <span className="text-accent-sh">"{category}"</span></>
+            ) : (
+              <>Explorá nuestro <span className="text-accent-sh">Catálogo</span></>
+            )}
           </h1>
-          {query && (
-            <p className="text-xl text-gray-600">
-              Mostrando resultados para: <span className="font-semibold">"{query}"</span>
-            </p>
-          )}
+          
+          <p className="text-xl text-white/40 max-w-2xl">
+            Combinamos los productos más vendidos con guías expertas para que compres siempre lo mejor.
+          </p>
         </div>
-        <SearchResults query={query} initialSearchParams={searchParams} />
+
+        <SearchResults query={query} category={category} blogResults={blogResults} />
       </div>
     </div>
   );

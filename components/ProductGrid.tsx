@@ -16,8 +16,21 @@ export default function ProductGrid({ products, filters = {} }: ProductGridProps
     let filtered = [...products];
 
     // Apply category filter
-    if (filters.category) {
-      filtered = filtered.filter(product => product.category.id === filters.category);
+    if (filters.category && filters.category !== 'all') {
+      const categoryToFilter = filters.category;
+
+      const normalizedSelected = categoryToFilter
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-z0-9\s-]/g, '')
+        .trim()
+        .replace(/\s+/g, '-');
+
+      filtered = filtered.filter(p => 
+        p.category.slug === normalizedSelected || 
+        p.category.id === normalizedSelected ||
+        p.category.slug === categoryToFilter
+      );
     }
 
     // Apply price range filter
@@ -36,13 +49,6 @@ export default function ProductGrid({ products, filters = {} }: ProductGridProps
       );
     }
 
-    // Apply rating filter
-    if (filters.rating) {
-      filtered = filtered.filter(product => 
-        (product.rating || 0) >= filters.rating!
-      );
-    }
-
     // Apply sorting
     filtered.sort((a, b) => {
       switch (sortBy) {
@@ -50,8 +56,6 @@ export default function ProductGrid({ products, filters = {} }: ProductGridProps
           return parseFloat(a.price.replace(/[$.,]/g, '')) - parseFloat(b.price.replace(/[$.,]/g, ''));
         case 'price_desc':
           return parseFloat(b.price.replace(/[$.,]/g, '')) - parseFloat(a.price.replace(/[$.,]/g, ''));
-        case 'rating':
-          return (b.rating || 0) - (a.rating || 0);
         case 'relevance':
         default:
           return 0;
@@ -62,45 +66,40 @@ export default function ProductGrid({ products, filters = {} }: ProductGridProps
   }, [products, filters, sortBy]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Sort Controls */}
-      <div className="flex justify-between items-center">
-        <p className="text-gray-600">
-          Mostrando {filteredAndSortedProducts.length} de {products.length} productos
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <p className="text-[13px] text-text-muted-sh font-light">
+          Mostrando <span className="text-white font-medium">{filteredAndSortedProducts.length}</span> productos
         </p>
-        <div className="flex items-center space-x-2">
-          <label htmlFor="sort" className="text-sm font-medium text-gray-700">
-            Ordenar por:
-          </label>
+        
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-bold text-text-muted-sh uppercase tracking-widest">Ordenar por</span>
           <select
-            id="sort"
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as FilterOptions['sortBy'])}
-            className="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-mercado-yellow"
+            className="bg-surface2-sh border border-white/10 rounded-lg px-4 py-2 text-sm text-text-sh focus:outline-none focus:border-accent-sh/30 transition-colors appearance-none cursor-pointer"
           >
             <option value="relevance">Relevancia</option>
             <option value="price_asc">Precio: Menor a Mayor</option>
             <option value="price_desc">Precio: Mayor a Menor</option>
-            <option value="rating">Mejor Valorados</option>
           </select>
         </div>
       </div>
 
       {/* Products Grid */}
       {filteredAndSortedProducts.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredAndSortedProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       ) : (
-        <div className="text-center py-12">
-          <div className="text-gray-400 text-6xl mb-4">🔍</div>
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">
-            No se encontraron productos
-          </h3>
-          <p className="text-gray-600">
-            Intenta ajustar los filtros o realizar una nueva búsqueda
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+          <div className="text-4xl mb-4">🔍</div>
+          <h3 className="font-syne text-xl font-bold text-white mb-2">No se encontraron productos</h3>
+          <p className="text-text-muted-sh text-sm font-light">
+            Intenta ajustar los filtros para encontrar lo que buscas.
           </p>
         </div>
       )}

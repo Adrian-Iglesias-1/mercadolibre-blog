@@ -4,7 +4,7 @@ export const categories: Category[] = [
   {
     id: 'tecnologia',
     name: 'Tecnología',
-    slug: 'tecnologia',
+    slug: 'computacion',
     description: 'Los mejores productos tecnológicos del mercado',
     icon: '💻',
     color: 'bg-blue-500'
@@ -32,6 +32,14 @@ export const categories: Category[] = [
     description: 'Equipamiento profesional para gamers',
     icon: '🎮',
     color: 'bg-indigo-600'
+  },
+  {
+    id: 'electrodomesticos',
+    name: 'Pequeños Electrodomésticos',
+    slug: 'pequenos-electrodomesticos',
+    description: 'Electrodomésticos prácticos para tu hogar',
+    icon: '🍳',
+    color: 'bg-yellow-500'
   },
   {
     id: 'blog',

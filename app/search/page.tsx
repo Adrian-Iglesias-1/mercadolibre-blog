@@ -1,5 +1,6 @@
 import { Metadata } from 'next';
 import ClientPage from './ClientPage';
+import { searchBlogPosts } from '@/lib/blog';
 
 export const metadata: Metadata = {
   title: 'Buscar Productos - ShopHub',
@@ -11,5 +12,8 @@ export default function SearchPage({
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
-  return <ClientPage searchParams={searchParams} />;
+  const query = (searchParams?.q as string) || '';
+  const blogResults = query ? searchBlogPosts(query) : [];
+
+  return <ClientPage searchParams={searchParams} blogResults={blogResults} />;
 }

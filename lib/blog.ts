@@ -55,9 +55,9 @@ export function getAllBlogPosts(): BlogPost[] {
           featured: data.featured === 'true' || data.featured === true,
           imageUrl: data.imageUrl || '',
           searchQuery: data.searchQuery || ''
-        };
+        } as BlogPost;
       })
-      .filter((post): post is BlogPost => post !== null);
+      .filter((post): post is BlogPost => !!post);
 
     // Sort by date (newest first)
     return allPostsData.sort((a, b) => 
@@ -95,6 +95,21 @@ export function getFeaturedBlogPosts(): BlogPost[] {
     return allPosts.filter(post => post.featured);
   } catch (error) {
     console.error('Error getting featured blog posts:', error);
+    return [];
+  }
+}
+export function searchBlogPosts(query: string): BlogPost[] {
+  try {
+    const allPosts = getAllBlogPosts();
+    const q = query.toLowerCase();
+    return allPosts.filter(post => 
+      post.title.toLowerCase().includes(q) || 
+      post.content.toLowerCase().includes(q) ||
+      post.excerpt.toLowerCase().includes(q) ||
+      post.tags.some(tag => tag.toLowerCase().includes(q))
+    );
+  } catch (error) {
+    console.error('Error searching blog posts:', error);
     return [];
   }
 }

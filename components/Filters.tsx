@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { FilterOptions, Category } from '@/types';
 
 interface FiltersProps {
@@ -10,147 +9,78 @@ interface FiltersProps {
 }
 
 export default function Filters({ categories, filters, onFiltersChange }: FiltersProps) {
-  const [priceRange, setPriceRange] = useState<[number, number]>(filters.priceRange || [0, 100000]);
-  const [selectedCategory, setSelectedCategory] = useState(filters.category || '');
-  const [selectedBrand, setSelectedBrand] = useState(filters.brand || '');
-  const [selectedRating, setSelectedRating] = useState(filters.rating || 0);
+  const selectedCategory = filters.category || '';
+  const selectedBrand = filters.brand || '';
 
   const handleCategoryChange = (categoryId: string) => {
     const newCategory = categoryId === selectedCategory ? '' : categoryId;
-    setSelectedCategory(newCategory);
     onFiltersChange({ ...filters, category: newCategory });
   };
 
-  const handlePriceChange = (min: number, max: number) => {
-    setPriceRange([min, max]);
-    onFiltersChange({ ...filters, priceRange: [min, max] });
-  };
-
   const handleBrandChange = (brand: string) => {
-    setSelectedBrand(brand);
     onFiltersChange({ ...filters, brand });
   };
 
-  const handleRatingChange = (rating: number) => {
-    const newRating = rating === selectedRating ? 0 : rating;
-    setSelectedRating(newRating);
-    onFiltersChange({ ...filters, rating: newRating });
-  };
-
   const clearFilters = () => {
-    setSelectedCategory('');
-    setPriceRange([0, 100000]);
-    setSelectedBrand('');
-    setSelectedRating(0);
     onFiltersChange({});
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-6 space-y-6">
+    <div className="space-y-8">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-semibold text-gray-900">Filtros</h3>
+        <h3 className="font-syne font-bold text-white uppercase tracking-widest text-xs">Filtros</h3>
         <button
           onClick={clearFilters}
-          className="text-sm text-mercado-yellow hover:text-yellow-400 font-medium"
+          className="text-[10px] text-accent-sh hover:underline font-bold uppercase tracking-widest"
         >
-          Limpiar filtros
+          Limpiar
         </button>
       </div>
 
       {/* Categories */}
-      <div>
-        <h4 className="text-sm font-black text-gray-900 uppercase tracking-widest mb-4">Categorías</h4>
+      <div className="sidebar-section">
+        <h4 className="sidebar-title font-syne text-[11px] font-bold text-text-muted-sh uppercase tracking-[2px] mb-4">Categorías</h4>
         <div className="space-y-1">
           {categories.map((category) => (
-            <label 
+            <div 
               key={category.id} 
-              className={`flex items-center space-x-3 cursor-pointer p-2 rounded-xl transition-all duration-200 group ${
-                selectedCategory === category.id ? 'bg-gray-50' : 'hover:bg-gray-50/80'
+              onClick={() => handleCategoryChange(category.id)}
+              className={`sidebar-item group flex items-center gap-3 py-2 text-sm cursor-pointer transition-colors ${
+                selectedCategory === category.id ? 'text-white' : 'text-text-muted-sh hover:text-text-sh'
               }`}
             >
-              <div className="relative flex items-center justify-center">
-                <input
-                  type="checkbox"
-                  checked={selectedCategory === category.id}
-                  onChange={() => handleCategoryChange(category.id)}
-                  className="peer h-5 w-5 cursor-pointer appearance-none rounded-md border border-gray-300 transition-all checked:bg-mercado-yellow checked:border-mercado-yellow hover:border-mercado-yellow focus:outline-none"
-                />
-                <svg className="absolute h-3.5 w-3.5 text-gray-900 opacity-0 peer-checked:opacity-100 transition-opacity pointer-events-none" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+              <div className={`check w-4 h-4 rounded border border-white/10 flex items-center justify-center text-[10px] transition-all ${
+                selectedCategory === category.id ? 'bg-accent-sh border-accent-sh text-black-sh' : 'group-hover:border-white/20'
+              }`}>
+                {selectedCategory === category.id && '✓'}
               </div>
-              <span className="flex items-center space-x-2">
-                <span className="text-lg group-hover:scale-110 transition-transform">{category.icon}</span>
-                <span className={`text-sm font-medium transition-colors ${selectedCategory === category.id ? 'text-gray-900' : 'text-gray-600 group-hover:text-gray-900'}`}>
-                  {category.name}
-                </span>
+              <span className="flex items-center gap-2">
+                <span className="text-base group-hover:scale-110 transition-transform">{category.icon}</span>
+                <span className="font-medium">{category.name}</span>
               </span>
-            </label>
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Price Range */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Rango de Precio</h4>
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-600">Mínimo: ${priceRange[0].toLocaleString()}</label>
-            <input
-              type="range"
-              min="0"
-              max="100000"
-              step="1000"
-              value={priceRange[0]}
-              onChange={(e) => handlePriceChange(parseInt(e.target.value), priceRange[1])}
-              className="w-full"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-600">Máximo: ${priceRange[1].toLocaleString()}</label>
-            <input
-              type="range"
-              min="0"
-              max="100000"
-              step="1000"
-              value={priceRange[1]}
-              onChange={(e) => handlePriceChange(priceRange[0], parseInt(e.target.value))}
-              className="w-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Brand */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Marca</h4>
+      {/* Brand Search */}
+      <div className="sidebar-section">
+        <h4 className="sidebar-title font-syne text-[11px] font-bold text-text-muted-sh uppercase tracking-[2px] mb-4">Marca</h4>
         <input
           type="text"
           placeholder="Buscar por marca..."
           value={selectedBrand}
           onChange={(e) => handleBrandChange(e.target.value)}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-mercado-yellow"
+          className="w-full bg-surface2-sh border border-white/10 rounded-lg px-4 py-2.5 text-sm text-text-sh placeholder:text-text-muted-sh focus:outline-none focus:border-accent-sh/30 transition-colors"
         />
       </div>
 
-      {/* Rating */}
-      <div>
-        <h4 className="text-sm font-medium text-gray-700 mb-3">Calificación Mínima</h4>
-        <div className="space-y-2">
-          {[4, 3, 2, 1].map((rating) => (
-            <label key={rating} className="flex items-center space-x-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={selectedRating === rating}
-                onChange={() => handleRatingChange(rating)}
-                className="rounded text-mercado-yellow focus:ring-mercado-yellow"
-              />
-              <span className="flex items-center space-x-1">
-                <span className="text-yellow-400">{'★'.repeat(rating)}</span>
-                <span className="text-gray-400">{'★'.repeat(5 - rating)}</span>
-                <span className="text-sm">y más</span>
-              </span>
-            </label>
-          ))}
-        </div>
+      {/* Price Info (Simplified) */}
+      <div className="sidebar-section">
+        <h4 className="sidebar-title font-syne text-[11px] font-bold text-text-muted-sh uppercase tracking-[2px] mb-4">Precios</h4>
+        <p className="text-[11px] text-text-muted-sh leading-relaxed">
+          Los precios se actualizan en tiempo real desde Mercado Libre Argentina.
+        </p>
       </div>
     </div>
   );

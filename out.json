@@ -1,0 +1,26 @@
+[
+  {
+    "url": "https://images.unsplash.com/photo-1595225405013-9899c5a6177c?w=1200",
+    "status": 404
+  },
+  {
+    "url": "https://images.unsplash.com/photo-1626285861696-9f0bf5a49c6d?w=1200",
+    "status": 200
+  },
+  {
+    "url": "https://images.unsplash.com/photo-1615663245857-ac1eebc5d0f6?w=1200",
+    "status": 404
+  },
+  {
+    "url": "https://images.unsplash.com/photo-1542751371-adc38448a05e?w=1200",
+    "status": 200
+  },
+  {
+    "url": "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=1200",
+    "status": 200
+  },
+  {
+    "url": "https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=1200",
+    "status": 200
+  }
+]

@@ -1,13 +1,11 @@
 import './globals.css'
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
 import Navigation from '@/components/Navigation'
-
-const inter = Inter({ subsets: ['latin'] })
+import Footer from '@/components/Footer'
 
 export const metadata: Metadata = {
-  title: 'ShopHub - Recomendaciones de MercadoLibre',
-  description: 'Descubre los mejores productos de MercadoLibre con nuestras recomendaciones expertas en tecnología, perfumes y más.',
+  title: 'ShopHub AR - Recomendaciones de Mercado Libre',
+  description: 'Descubre lo mejor de Argentina con nuestras recomendaciones verificadas de Mercado Libre.',
 }
 
 export default function RootLayout({
@@ -17,9 +15,10 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
-      <body className={inter.className}>
+      <body className="font-dmsans bg-black-sh text-text-sh selection:bg-accent-sh selection:text-black-sh">
         <Navigation />
-        {children}
+        <main>{children}</main>
+        <Footer />
       </body>
     </html>
   )

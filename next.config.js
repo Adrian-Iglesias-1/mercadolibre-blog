@@ -4,17 +4,26 @@ const nextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: '**.mlstatic.com',
+      },
+      {
+        protocol: 'http',
+        hostname: '**.mlstatic.com',
+      },
+      {
+        protocol: 'https',
         hostname: 'http2.mlstatic.com',
-        port: '',
-        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'mla-s2-p.mlstatic.com',
       },
       {
         protocol: 'https',
         hostname: 'images.unsplash.com',
-        port: '',
-        pathname: '/**',
       },
     ],
+    unoptimized: true,
   },
 }
 

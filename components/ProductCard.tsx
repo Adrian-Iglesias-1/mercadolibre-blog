@@ -2,65 +2,99 @@
 
 import { Product } from '@/types';
 import Link from 'next/link';
-import Image from 'next/image';
 
 interface ProductCardProps {
   product: Product;
+  rank?: number;
 }
 
-export default function ProductCard({ product }: ProductCardProps) {
+export default function ProductCard({ product, rank }: ProductCardProps) {
+  let imageUrl = product.imageUrl || '';
+
+  if (imageUrl.startsWith('//')) imageUrl = `https:${imageUrl}`;
+  if (imageUrl.startsWith('http://')) imageUrl = imageUrl.replace('http://', 'https://');
+
+  if (imageUrl.includes('mlstatic.com')) {
+    imageUrl = imageUrl
+      .replace(/-I\.(jpg|webp|jpeg)/i, '-O.$1')
+      .replace(/-V\.(jpg|webp|jpeg)/i, '-O.$1')
+      .replace(/-S\.(jpg|webp|jpeg)/i, '-O.$1');
+  }
+
+  const hasImage = imageUrl.length > 0;
+  const proxiedUrl = hasImage
+    ? `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`
+    : '';
+
   return (
-    <div className="group bg-white rounded-3xl p-5 shadow-sm border border-gray-100 hover:shadow-2xl transition-all duration-500 flex flex-col h-full relative overflow-hidden">
-      {/* Imagen Premium Container */}
-      <div className="relative h-48 w-full mb-6 rounded-2xl overflow-hidden bg-gray-50/50 p-4 group-hover:bg-white transition-colors duration-500">
-        <Image
-          src={product.imageUrl}
-          alt={product.title}
-          fill
-          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-          className="object-contain transition-transform duration-700 group-hover:scale-110"
-        />
-        {/* Badge de Categoría Flotante */}
-        <div className={`absolute top-3 left-3 px-3 py-1 rounded-full text-[10px] font-black text-white uppercase tracking-wider shadow-sm ${product.category.color}`}>
-          {product.category.name}
+    <div className="group relative bg-[#1a1a1a] border border-white/8 rounded-2xl overflow-hidden transition-all duration-300 hover:border-[rgba(232,255,71,0.2)] hover:-translate-y-1.5 hover:shadow-[0_20px_60px_rgba(0,0,0,0.5)] flex flex-col h-full">
+
+      {/* Rank Badge */}
+      {rank && (
+        <div className={`absolute top-3 left-3 z-10 w-8 h-8 rounded-lg flex items-center justify-center font-syne text-xs font-black border shadow-xl ${
+          rank <= 3
+            ? 'bg-[#e8ff47] border-transparent text-black'
+            : 'bg-black border-white/10 text-[#888]'
+        }`}>
+          {rank}
         </div>
+      )}
+
+      {/* Product Image */}
+      <div className="relative aspect-square bg-[#242424] flex items-center justify-center overflow-hidden">
+        {hasImage ? (
+          <img
+            src={proxiedUrl}
+            alt={product.title}
+            className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
+            loading="lazy"
+            onError={(e) => {
+              e.currentTarget.style.opacity = '0.1';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center">
+            <span className="text-4xl opacity-10">📦</span>
+          </div>
+        )}
       </div>
 
-      {/* Info Body */}
-      <div className="flex-1 flex flex-col">
-        <div className="mb-1">
-          <span className="text-[10px] font-black text-blue-600 tracking-[0.2em] uppercase opacity-80">{product.brand}</span>
+      {/* Info */}
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex justify-between items-start mb-2">
+          <span className="inline-block bg-accent-sh/10 text-accent-sh text-[9px] font-bold tracking-[0.1em] uppercase px-2 py-0.5 rounded border border-accent-sh/20">
+            {product.brand || 'Producto'}
+          </span>
+          {product.soldCount && (
+            <span className="text-[9px] text-white/30 font-medium">
+              +{product.soldCount.replace(/[^\d]/g, '')} vendidos
+            </span>
+          )}
         </div>
 
-        <h3 className="text-sm font-bold text-gray-800 line-clamp-2 min-h-[3rem] mb-4 group-hover:text-blue-700 transition-colors leading-tight">
+        <h3 className="text-[14px] text-white font-bold leading-[1.4] line-clamp-3 mb-4 group-hover:text-accent-sh transition-colors min-h-[3.8rem]">
           {product.title}
         </h3>
 
-        <div className="mt-auto flex flex-col">
-          <div className="border-t border-gray-50 pt-4 mb-4 min-h-[4.5rem] flex flex-col justify-center">
-            <div className="flex flex-col">
-              <span className="text-[10px] text-gray-400 font-black uppercase tracking-tighter mb-0.5">Precio Final</span>
-              <span className="text-2xl font-black text-gray-900 leading-none tracking-tight">
-                {new Intl.NumberFormat('es-AR', {
-                  style: 'currency',
-                  currency: 'ARS',
-                  maximumFractionDigits: 0
-                }).format(Number(product.price))}
-              </span>
-            </div>
-
-            <div className="mt-1.5 inline-flex items-center gap-1 bg-green-50 text-green-600 text-[11px] font-black px-2 py-0.5 rounded-full border border-green-100 self-start">
-              <span>🚚</span>
-              <span className="uppercase tracking-wide">Envío Gratis</span>
-            </div>
+        <div className="mt-auto pt-4 border-t border-white/5">
+          <div className="flex items-baseline gap-1 mb-3">
+            <span className="text-xl font-syne font-black text-white">
+              {new Intl.NumberFormat('es-AR', {
+                style: 'currency',
+                currency: 'ARS',
+                maximumFractionDigits: 0,
+              }).format(Number(product.price))}
+            </span>
           </div>
 
-          <Link 
+          <Link
             href={product.productUrl}
             target="_blank"
-            className="block w-full bg-mercado-yellow hover:bg-yellow-400 text-gray-900 text-center py-4 rounded-2xl font-black text-xs uppercase tracking-[0.15em] transition-all transform active:scale-95 shadow-md hover:shadow-xl border-b-4 border-yellow-600 active:border-b-0"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-2 w-full bg-[#e8ff47] text-black py-3 rounded-xl font-syne font-bold text-[11px] tracking-widest uppercase transition-all hover:bg-white hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_20px_rgba(232,255,71,0.2)]"
           >
             Ver en Mercado Libre
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M7 7h10v10"/><path d="M7 17 17 7"/></svg>
           </Link>
         </div>
       </div>

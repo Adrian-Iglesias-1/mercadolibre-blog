@@ -5,14 +5,14 @@ excerpt: "Guía completa para entender las notas olfativas, la fijación y cómo
 author: "ShopHub Team"
 publishedAt: "2026-03-10T12:00:00Z"
 category: "Perfumes"
-imageUrl: "https://images.unsplash.com/photo-1583467875263-d50dec37a88c"
+imageUrl: "/images/perfume.png"
 featured: "false"
 searchQuery: "perfumes importados originales"
 ---
 
 Elegir un perfume importado es una inversión en tu imagen personal. No se trata solo de oler bien, sino de transmitir una personalidad única. En esta guía te enseñamos todo lo que necesitas saber antes de comprar tu primera fragancia de lujo.
 
-![Fragancia de lujo](https://images.unsplash.com/photo-1541605028087-325b1ee2427a?auto=format&fit=crop&q=80&w=1200)
+![Fragancia de lujo](https://images.unsplash.com/photo-1585386959984-a4155224a1ad?auto=format&fit=crop&w=1200&q=80)
 
 ## Entendiendo las concentraciones
 
@@ -31,8 +31,6 @@ Un perfume no huele igual cuando lo aplicas que cuando pasan tres horas. Esto se
 - **Notas de Fondo:** Maderas, ámbar o almizcle. Es lo que queda en tu piel al final del día.
 
 > **Tip de experto:** Nunca frotes tus muñecas después de aplicar el perfume. Esto rompe las moléculas y altera la evolución natural de la fragancia.
-
-![Colección de perfumes](https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&q=80&w=1200)
 
 ## Cómo elegir según la ocasión
 

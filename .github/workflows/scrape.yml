@@ -1,0 +1,38 @@
+name: 🛒 MercadoLibre Auto-Scraper
+
+on:
+  schedule:
+    # Se ejecuta cada 6 horas (00:00, 06:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+    # Permite ejecutarlo manualmente desde la pestaña "Actions" de GitHub
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: ⬇️ Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 📦 Install Dependencies
+        run: npm install
+
+      - name: 🌐 Install Chrome for Puppeteer
+        run: npx puppeteer browsers install chrome
+
+      - name: 🚀 Run Scraper
+        env:
+          # Estas variables se configuran en GitHub Repo -> Settings -> Secrets and variables -> Actions
+          SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
+          GOOGLE_SERVICE_ACCOUNT_EMAIL: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_EMAIL }}
+          GOOGLE_PRIVATE_KEY: ${{ secrets.GOOGLE_PRIVATE_KEY }}
+          CI: true
+          NODE_ENV: production
+        run: node scripts/scrape-hub.js

@@ -7,9 +7,10 @@ export interface Product {
   category: Category;
   brand?: string;
   rating?: number;
-  reviews?: number;
+  reviewsCount?: number;
   discount?: number;
   originalPrice?: string;
+  soldCount?: string;
 }
 
 export interface Category {
@@ -34,6 +35,7 @@ export interface BlogPost {
   tags: string[];
   featured: boolean;
   imageUrl?: string;
+  coverImage?: string;
   searchQuery?: string;
 }
 
