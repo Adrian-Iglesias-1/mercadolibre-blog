@@ -161,8 +161,8 @@ async function main() {
     ],
   };
 
-  // Solo usamos CHROME_PATH si existe (en local Windows), si no dejamos que puppeteer lo encuentre
-  if (CHROME_PATH) {
+  // Solo usamos CHROME_PATH si existe Y NO estamos en GitHub (CI)
+  if (CHROME_PATH && !isCI) {
     launchOptions.executablePath = CHROME_PATH;
   }
   
@@ -170,6 +170,7 @@ async function main() {
     launchOptions.userDataDir = USER_DATA_DIR;
   }
 
+  console.log(`🤖 Modo CI: ${isCI}`);
   const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
