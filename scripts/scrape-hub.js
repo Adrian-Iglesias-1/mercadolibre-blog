@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 // Configuración unificada
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1eZ_ql4KR4TZf0rjpB3olUgNhkSFr2SQV4PR-_9K7tpI';
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || null; // En GitHub Actions esto DEBE ser null o venir del sistema
 const USER_DATA_DIR = process.env.USER_DATA_DIR || path.join(__dirname, 'session_data');
 const CREDENTIALS_PATH = path.join(__dirname, '..', 'google-credentials.json');
 
@@ -54,134 +54,40 @@ async function scrollHastaCargarProductos(page, cantidad) {
       sinCambios = 0;
     }
 
-    console.log(`   → Acumulados: ${linksAcumulados.size}/${cantidad} (visibles ahora: ${linksVisibles.length})`);
-
-    await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-    await sleep(1800);
+    await page.evaluate(() => window.scrollBy(0, 800));
+    await sleep(2500);
+    console.log(`🔎 Links: ${linksAcumulados.size} / ${cantidad}`);
   }
 
-  const links = [...linksAcumulados].slice(0, cantidad);
-  console.log(`✅ Total links únicos recolectados: ${links.length}`);
-  return links;
+  return Array.from(linksAcumulados);
 }
 
-function extraerCategoria(breadcrumbs) {
-  if (!breadcrumbs || breadcrumbs.length === 0) return 'Sin categoría';
-  if (breadcrumbs.length >= 2) return breadcrumbs[1];
-  return breadcrumbs[0];
-}
-
-// ─── PROCESAR UN PRODUCTO ─────────────────────────────────
+// ─── PROCESAR UN PRODUCTO ──────────────────────────────
 
 async function procesarProducto(page, url) {
   try {
-    console.log(`\n📦 Procesando: ${url.split('/').pop()}`);
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
     await sleep(1500);
 
-    let linkFinal = null;
+    const data = await page.evaluate(() => {
+      const nombre = document.querySelector('h1.ui-pdp-title')?.innerText || '';
+      const precio = document.querySelector('.ui-pdp-price__main-container .andes-money-amount__fraction')?.innerText || '';
+      const imagen = document.querySelector('.ui-pdp-gallery__figure__image')?.src || '';
+      const categoria = document.querySelector('.and-breadcrumb__item:last-child')?.innerText || 
+                        document.querySelector('.ui-pdp-breadcrumb__link:last-child')?.innerText || '';
+      const vendidos = document.querySelector('.ui-pdp-header__subtitle')?.innerText?.split(' ')[0] || '';
 
-    const responseHandler = async (response) => {
-      const resUrl = response.url();
-      if (
-        resUrl.includes('shortener') ||
-        resUrl.includes('affiliate') ||
-        resUrl.includes('meli.la') ||
-        resUrl.includes('short_url')
-      ) {
-        try {
-          const json = await response.json();
-          linkFinal =
-            json?.short_url ||
-            json?.url ||
-            json?.link ||
-            json?.data?.url ||
-            null;
-        } catch (_) {}
-      }
-    };
-
-    page.on('response', responseHandler);
-
-    const datos = await page.evaluate(() => {
-      const nombre =
-        document.querySelector('h1.ui-pdp-title')?.innerText ||
-        document.querySelector('h1')?.innerText ||
-        'Producto';
-
-      const precio = (
-        document.querySelector('.ui-pdp-price__second-line .andes-money-amount__fraction') ||
-        document.querySelector('.ui-pdp-price__main-container .andes-money-amount__fraction') ||
-        document.querySelector('[class*="price__main"] .andes-money-amount__fraction') ||
-        document.querySelector('.ui-pdp-price .andes-money-amount__fraction') ||
-        document.querySelector('.andes-money-amount__fraction')
-      )?.innerText || '0';
-
-      const img =
-        document.querySelector('.ui-pdp-gallery__figure__image')?.src ||
-        document.querySelector('.ui-pdp-image')?.src ||
-        document.querySelector('figure img')?.src ||
-        null;
-
-      const breadcrumbEls = Array.from(
-        document.querySelectorAll(
-          '.andes-breadcrumb__item, .ui-vip-breadcrumb__item, nav[aria-label="breadcrumb"] li'
-        )
-      );
-      const breadcrumbs = breadcrumbEls
-        .map(el => el.innerText?.trim())
-        .filter(Boolean);
-
-      const vendidos =
-        document.querySelector('.ui-pdp-subtitle')?.innerText ||
-        document.querySelector('[class*="sold"]')?.innerText ||
-        '';
-
-      return { nombre, precio, img, breadcrumbs, vendidos };
+      return { nombre, precio, imagen, categoria, vendidos };
     });
 
-    const categoria = extraerCategoria(datos.breadcrumbs);
-
-    try {
-      await page.waitForSelector('button[data-testid="generate_link_button"]', {
-        visible: true,
-        timeout: 8000,
-      });
-      await page.click('button[data-testid="generate_link_button"]');
-      await sleep(2500);
-
-      await page.waitForSelector('button[aria-label="Link del producto"]', {
-        visible: true,
-        timeout: 5000,
-      });
-      await page.click('button[aria-label="Link del producto"]');
-      await sleep(1500);
-    } catch (e) {
-      console.log(`   ⚠️ No se pudo generar link de afiliado automáticamente.`);
-    }
-
-    page.off('response', responseHandler);
-
-    if (!linkFinal) {
-      linkFinal = `${url}?matt_tool=39858519&matt_word=ji2014`;
-    }
-
-    const resultado = {
-      nombre: datos.nombre,
-      precio: limpiarPrecio(datos.precio),
+    return {
+      ...data,
       urlOriginal: url,
-      linkAfiliado: linkFinal,
-      imagen: datos.img || '',
-      categoria: categoria,
-      vendidos: datos.vendidos,
-      fechaCaptura: new Date().toLocaleDateString('es-AR'),
+      linkAfiliado: url,
+      fechaCaptura: new Date().toISOString()
     };
-
-    console.log(`   ✅ ${datos.nombre.slice(0, 50)} | ${categoria}`);
-    return resultado;
-
-  } catch (err) {
-    console.log(`   ❌ Error: ${err.message}`);
+  } catch (e) {
+    console.error(`❌ Error procesando ${url}: ${e.message}`);
     return null;
   }
 }
@@ -213,8 +119,6 @@ async function guardarEnSheets(resultados) {
   await doc.loadInfo();
   const sheet = doc.sheetsByIndex[0];
 
-  // Usamos clear() pero restablecemos el header inmediatamente para evitar que la web se rompa
-  // google-spreadsheet v4 clear() borra todo. 
   await sheet.clear();
   await sheet.setHeaderRow([
     'Nombre',
@@ -247,17 +151,26 @@ async function guardarEnSheets(resultados) {
 async function main() {
   const isCI = process.env.CI === 'true' || process.env.NODE_ENV === 'production';
   
-  const browser = await puppeteer.launch({
+  const launchOptions = {
     headless: isCI ? 'new' : false,
-    executablePath: CHROME_PATH,
-    userDataDir: isCI ? null : USER_DATA_DIR, // No persistir datos de sesión en CI para evitar bloqueos
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
       '--disable-dev-shm-usage',
       '--window-size=1366,768'
     ],
-  });
+  };
+
+  // Solo usamos CHROME_PATH si existe (en local Windows), si no dejamos que puppeteer lo encuentre
+  if (CHROME_PATH) {
+    launchOptions.executablePath = CHROME_PATH;
+  }
+  
+  if (!isCI) {
+    launchOptions.userDataDir = USER_DATA_DIR;
+  }
+
+  const browser = await puppeteer.launch(launchOptions);
 
   const page = await browser.newPage();
   await page.setDefaultNavigationTimeout(60000);
@@ -265,9 +178,9 @@ async function main() {
   const resultados = [];
 
   console.log('🚀 Iniciando scraper de Más Vendidos...');
-  await page.goto(URL_HUB, { waitUntil: 'networkidle2' });
-
   try {
+    await page.goto(URL_HUB, { waitUntil: 'networkidle2' });
+
     console.log("🖱️ Seleccionando 'Más vendidos' (Tenes 60 segundos para loguearte si es necesario)...");
     const botonMasVendidos = await page.waitForSelector(
       'xpath/.//button[contains(., "Más vendidos")]',
@@ -303,16 +216,11 @@ async function main() {
     } else {
       console.log('\n⚠️ No se obtuvieron resultados.');
     }
-
   } catch (e) {
-    console.log(`\n❌ ERROR CRÍTICO: ${e.message}`);
-    if (resultados.length > 0) {
-      console.log(`💾 Guardando ${resultados.length} resultados parciales...`);
-      await guardarEnSheets(resultados);
-    }
+    console.error(`\n❌ ERROR EN EL PROCESO: ${e.message}`);
+  } finally {
+    await browser.close();
   }
-
-  await browser.close();
 }
 
 main();
