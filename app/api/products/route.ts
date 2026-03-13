@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getProductsFromSheet } from '@/lib/google-sheets';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
