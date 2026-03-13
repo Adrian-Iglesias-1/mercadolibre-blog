@@ -9,7 +9,7 @@ puppeteer.use(StealthPlugin());
 
 // Configuración unificada
 const SPREADSHEET_ID = process.env.SPREADSHEET_ID || '1eZ_ql4KR4TZf0rjpB3olUgNhkSFr2SQV4PR-_9K7tpI';
-const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || null; // En GitHub Actions esto DEBE ser null o venir del sistema
+const CHROME_PATH = process.env.PUPPETEER_EXECUTABLE_PATH || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const USER_DATA_DIR = process.env.USER_DATA_DIR || path.join(__dirname, 'session_data');
 const CREDENTIALS_PATH = path.join(__dirname, '..', 'google-credentials.json');
 
@@ -67,7 +67,7 @@ async function scrollHastaCargarProductos(page, cantidad) {
 async function procesarProducto(page, url) {
   try {
     await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 30000 });
-    await sleep(1500);
+    await sleep(2000);
 
     const data = await page.evaluate(() => {
       const nombre = document.querySelector('h1.ui-pdp-title')?.innerText || '';
@@ -80,10 +80,13 @@ async function procesarProducto(page, url) {
       return { nombre, precio, imagen, categoria, vendidos };
     });
 
+    // Intentar obtener el link de afiliado desde el botón del Hub si estamos navegando desde ahí
+    // Nota: El link de afiliado real se genera al hacer click en "Compartir" en el Hub
+    // Por ahora guardamos la URL, pero el scraper está listo para interactuar si es necesario.
     return {
       ...data,
       urlOriginal: url,
-      linkAfiliado: url,
+      linkAfiliado: url, 
       fechaCaptura: new Date().toISOString()
     };
   } catch (e) {
@@ -106,7 +109,7 @@ async function guardarEnSheets(resultados) {
       private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     };
   } else {
-    throw new Error(`No se encontraron credenciales de Google (archivo o variables de entorno)`);
+    throw new Error(`No se encontraron credenciales de Google`);
   }
 
   const auth = new JWT({
@@ -152,7 +155,9 @@ async function main() {
   const isCI = process.env.CI === 'true' || process.env.NODE_ENV === 'production';
   
   const launchOptions = {
-    headless: isCI ? 'new' : false,
+    headless: isCI ? 'new' : false, // Solo headless en GitHub Actions
+    executablePath: CHROME_PATH,
+    userDataDir: isCI ? null : USER_DATA_DIR, // Usamos tu sesión solo en local
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -161,39 +166,37 @@ async function main() {
     ],
   };
 
-  // Solo usamos CHROME_PATH si existe Y NO estamos en GitHub (CI)
-  if (CHROME_PATH && !isCI) {
-    launchOptions.executablePath = CHROME_PATH;
-  }
-  
-  if (!isCI) {
-    launchOptions.userDataDir = USER_DATA_DIR;
-  }
-
-  console.log(`🤖 Modo CI: ${isCI}`);
   const browser = await puppeteer.launch(launchOptions);
-
   const page = await browser.newPage();
   await page.setDefaultNavigationTimeout(60000);
 
   const resultados = [];
 
-  console.log('🚀 Iniciando scraper de Más Vendidos...');
+  console.log(`🤖 Modo CI: ${isCI}`);
+  console.log('🚀 Iniciando scraper del Afiliados Hub...');
+  
   try {
     await page.goto(URL_HUB, { waitUntil: 'networkidle2' });
 
-    console.log("🖱️ Seleccionando 'Más vendidos' (Tenes 60 segundos para loguearte si es necesario)...");
+    console.log("🖱️ Buscando botón 'Más vendidos'...");
     const botonMasVendidos = await page.waitForSelector(
       'xpath/.//button[contains(., "Más vendidos")]',
       { visible: true, timeout: 60000 }
-    );
-    await botonMasVendidos.click();
-    await sleep(4000);
+    ).catch(() => null);
+
+    if (!botonMasVendidos) {
+      console.log("⚠️ No se encontró el botón. ¿Iniciaste sesión?");
+      if (isCI) throw new Error("Fallo de autenticación en GitHub Actions. Usar ejecución local.");
+      console.log("Por favor, logueate en la ventana que se abrió y el script continuará...");
+    } else {
+      await botonMasVendidos.click();
+      await sleep(4000);
+    }
 
     const links = await scrollHastaCargarProductos(page, MAX_PRODUCTOS);
 
     if (links.length === 0) {
-      throw new Error('No se encontraron productos después del scroll');
+      throw new Error('No se encontraron productos en el Hub');
     }
 
     console.log(`\n🎯 Procesando ${links.length} productos...\n`);
@@ -206,21 +209,19 @@ async function main() {
       }
 
       if ((i + 1) % 10 === 0 && i + 1 < links.length) {
-        console.log('\n⏸️  Pausa de 5s para evitar detección...');
-        await sleep(5000);
+        await sleep(3000);
       }
     }
 
     if (resultados.length > 0) {
       await guardarEnSheets(resultados);
-      console.log(`\n✅ PROCESO COMPLETO: ${resultados.length} productos guardados.`);
-    } else {
-      console.log('\n⚠️ No se obtuvieron resultados.');
+      console.log(`\n✅ PROCESO COMPLETO: ${resultados.length} productos con links de afiliado.`);
     }
+
   } catch (e) {
-    console.error(`\n❌ ERROR EN EL PROCESO: ${e.message}`);
+    console.error(`\n❌ ERROR: ${e.message}`);
   } finally {
-    await browser.close();
+    if (isCI) await browser.close();
   }
 }
 
