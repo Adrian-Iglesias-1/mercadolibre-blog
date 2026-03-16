@@ -1,0 +1,8 @@
+node_modules/
+.next/
+out/
+build/
+session_data/
+scripts/session_data/
+content/products.json
+public/

@@ -159,9 +159,9 @@ export default function ClientPage({
           
           <h1 className="text-5xl md:text-7xl font-syne font-black text-white tracking-tighter mb-6">
             {query ? (
-              <>Resultados para <span className="text-accent-sh">"{query}"</span></>
+              <>Resultados para <span className="text-accent-sh">&quot;{query}&quot;</span></>
             ) : category ? (
-              <>Categoría: <span className="text-accent-sh">"{category}"</span></>
+              <>Categoría: <span className="text-accent-sh">&quot;{category}&quot;</span></>
             ) : (
               <>Explorá nuestro <span className="text-accent-sh">Catálogo</span></>
             )}

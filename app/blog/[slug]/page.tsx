@@ -55,7 +55,7 @@ async function RecommendedProducts({ query, category }: { query?: string, catego
           href="/"
           className="inline-flex items-center gap-2 border border-white/10 rounded-full px-8 py-4 text-sm font-bold text-white hover:border-accent-sh hover:text-accent-sh transition-all group"
         >
-          Ver todos los destacados <span className="group-hover:translate-x-1 transition-transform">→</span>
+          Ver todos los destacados <span className="group-hover:translate-x-1 transition-transform">&rarr;</span>
         </Link>
       </div>
     </section>
@@ -78,7 +78,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
             href="/blog"
             className="inline-flex items-center text-accent-sh hover:text-[#d4eb3a] font-bold mb-8 group"
           >
-            <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
+            <span className="mr-2 group-hover:-translate-x-1 transition-transform">&larr;</span>
             Volver al blog
           </Link>
 

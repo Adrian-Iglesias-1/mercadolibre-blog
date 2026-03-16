@@ -24,7 +24,7 @@ export default async function BlogPage() {
             <p className="text-accent-sh text-[11px] font-semibold tracking-[3px] uppercase">Nuestro Magazine</p>
           </div>
           <h1 className="font-syne text-5xl md:text-7xl font-extrabold text-white tracking-tight leading-none mb-6">
-            Guías de Compra <br />& Artículos
+            Guías de Compra <br />&amp; Artículos
           </h1>
           <p className="text-lg text-text-muted-sh font-light max-w-2xl leading-relaxed">
             Explorá nuestras recomendaciones expertas, análisis detallados y las mejores ofertas 
@@ -77,7 +77,7 @@ export default async function BlogPage() {
                       <span className="text-xs text-text-sh font-medium">Por {post.author}</span>
                     </div>
                     <span className="text-accent-sh text-sm font-bold tracking-widest uppercase group-hover:translate-x-1 transition-transform">
-                      Leer más →
+                      Leer más &rarr;
                     </span>
                   </div>
                 </div>

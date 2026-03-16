@@ -59,7 +59,7 @@ export default function SearchBar() {
       {/* Search suggestions */}
       {query.trim().length >= 2 && (
         <div className="mt-2 text-sm text-gray-500 text-center">
-          💡 Presiona Enter para buscar "{query}" en MercadoLibre
+          💡 Presiona Enter para buscar &quot;{query}&quot; en MercadoLibre
         </div>
       )}
     </form>

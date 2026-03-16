@@ -53,7 +53,7 @@ export default function HeroSection() {
             type="submit"
             className="bg-accent-sh text-black-sh border-none rounded-r-xl px-6 py-3.5 font-syne font-bold text-sm tracking-wider hover:bg-[#d4eb3a] transition-colors whitespace-nowrap"
           >
-            BUSCAR →
+            BUSCAR &rarr;
           </button>
         </form>
 

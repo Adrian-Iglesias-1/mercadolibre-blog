@@ -1,5 +1,6 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getProductsFromSheet } from '@/lib/google-sheets';
+import { normalize } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,20 +23,12 @@ export async function GET(request: NextRequest) {
 
     // 2. Filtrar por categoría si existe
     if (category) {
-      const normalizeStr = (str: string) => 
-        str.toLowerCase()
-           .normalize("NFD")
-           .replace(/[\u0300-\u036f]/g, "")
-           .replace(/[^a-z0-9\s-]/g, '')
-           .trim()
-           .replace(/\s+/g, '-');
-
-      const normalizedReqCat = normalizeStr(category);
+      const normalizedReqCat = normalize(category);
 
       products = products.filter(p => {
-        const productCatSlug = p.category.slug ? normalizeStr(p.category.slug) : '';
-        const productCatId = p.category.id ? normalizeStr(p.category.id) : '';
-        const productCatName = p.category.name ? normalizeStr(p.category.name) : '';
+        const productCatSlug = p.category.slug ? normalize(p.category.slug) : '';
+        const productCatId = p.category.id ? normalize(p.category.id) : '';
+        const productCatName = p.category.name ? normalize(p.category.name) : '';
 
         return productCatSlug === normalizedReqCat || 
                productCatId === normalizedReqCat ||

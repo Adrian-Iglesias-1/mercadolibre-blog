@@ -17,7 +17,7 @@ export default function Footer() {
           <h4 className="font-syne font-bold text-sm text-white uppercase tracking-wider">Enlaces Rápidos</h4>
           <ul className="flex flex-col gap-2">
             <li><Link href="/" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Inicio</Link></li>
-            <li><Link href="/blog" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Blog & Magazine</Link></li>
+            <li><Link href="/blog" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Blog &amp; Magazine</Link></li>
             <li><Link href="/categorias" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Categorías de Productos</Link></li>
           </ul>
         </div>

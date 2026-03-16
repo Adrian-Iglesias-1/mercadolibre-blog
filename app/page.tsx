@@ -174,7 +174,7 @@ export default async function HomePage({
             <p className="text-accent-sh text-[11px] font-semibold tracking-[3px] uppercase">Nuestro Magazine</p>
           </div>
           <h2 className="font-syne text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-none">
-            Guías de Compra<br />& Reviews
+            Guías de Compra<br />&amp; Reviews
           </h2>
 
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-6 mt-12">
@@ -235,7 +235,7 @@ export default async function HomePage({
               </div>
               <div className="p-6">
                 <Link href="/blog" className="inline-flex items-center gap-2 border border-white/10 rounded-lg px-4.5 py-2.5 text-sm font-medium hover:border-accent-sh hover:text-accent-sh transition-all">
-                  Ver blog completo →
+                  Ver blog completo &rarr;
                 </Link>
               </div>
             </div>
