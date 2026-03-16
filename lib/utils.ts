@@ -15,6 +15,7 @@ export const normalize = (str: string) => {
 
 /**
  * Utilidad básica para condicionales de clases (opcional pero común)
+ * v1.0.1 - Trigger commit para Vercel
  */
 export const cn = (...classes: (string | undefined | null | boolean)[]) => {
   return classes.filter(Boolean).join(' ');
