@@ -113,31 +113,35 @@ export async function getProductsFromSheet(): Promise<Product[]> {
   
   // 1. Intentar desde Supabase
   try {
-    const { data, error, count } = await supabase
-      .from('products')
-      .select('*', { count: 'exact' })
-      .order('date_added', { ascending: false });
+    if (supabase) {
+      const { data, error, count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact' })
+        .order('date_added', { ascending: false });
 
-    if (!error && data && data.length > 0) {
-      return data.map(p => ({
-        id: p.id,
-        title: p.title,
-        price: p.price?.toString() || '0',
-        productUrl: p.product_url,
-        imageUrl: p.image_url,
-        category: {
-          id: p.category_id,
-          name: p.category_name,
-          icon: p.category_icon || '📦',
-          slug: p.category_slug,
-          description: '',
-          color: '#000000'
-        },
-        brand: p.brand || 'Genérico',
-        soldCount: p.sold_count || ''
-      }));
-    } else if (error) {
-      console.error('❌ Error de Supabase:', error.message);
+      if (!error && data && data.length > 0) {
+        return data.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          price: p.price?.toString() || '0',
+          productUrl: p.product_url,
+          imageUrl: p.image_url,
+          category: {
+            id: p.category_id,
+            name: p.category_name,
+            icon: p.category_icon || '📦',
+            slug: p.category_slug,
+            description: '',
+            color: '#000000'
+          },
+          brand: p.brand || 'Genérico',
+          soldCount: p.sold_count || ''
+        }));
+      } else if (error) {
+        console.error('❌ Error de Supabase:', error.message);
+      }
+    } else {
+      console.warn('⏭️ Saltando Supabase: Cliente no inicializado');
     }
   } catch (error) {
     console.error('⚠️ Excepción al conectar con Supabase:', error);
