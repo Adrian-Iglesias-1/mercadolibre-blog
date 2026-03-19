@@ -2,6 +2,9 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import { getAllBlogPosts } from '@/lib/blog';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata: Metadata = {
   title: 'Blog - ShopHub AR',
   description: 'Guías, reseñas y recomendaciones de productos verificados de Mercado Libre.',
@@ -72,9 +75,9 @@ export default async function BlogPage() {
                   <div className="mt-auto flex items-center justify-between border-t border-white/5 pt-6">
                     <div className="flex items-center gap-2">
                        <div className="w-8 h-8 rounded-full bg-surface3-sh flex items-center justify-center text-[10px] font-bold text-white uppercase border border-white/10">
-                        {post.author.charAt(0)}
+                        {post.author ? post.author.charAt(0) : 'S'}
                       </div>
-                      <span className="text-xs text-text-sh font-medium">Por {post.author}</span>
+                      <span className="text-xs text-text-sh font-medium">Por {post.author || 'ShopHub Team'}</span>
                     </div>
                     <span className="text-accent-sh text-sm font-bold tracking-widest uppercase group-hover:translate-x-1 transition-transform">
                       Leer más &rarr;

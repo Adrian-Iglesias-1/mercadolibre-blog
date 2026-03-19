@@ -1,0 +1,28 @@
+
+> mercadolibre-blog@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use, trying 3001 instead.
+ ⚠ Port 3001 is in use, trying 3002 instead.
+  ▲ Next.js 14.2.15
+  - Local:        http://localhost:3002
+  - Environments: .env.local
+
+ ✓ Starting...
+Error: EINVAL: invalid argument, readlink 'C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\.next\server\app-paths-manifest.json'
+    at async Object.readlink (node:internal/fs/promises:973:10)
+    at async C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\lib\recursive-delete.js:58:30
+    at async Promise.all (index 1)
+    at async recursiveDelete (C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\lib\recursive-delete.js:51:5)
+    at async C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\lib\recursive-delete.js:68:17
+    at async Promise.all (index 5)
+    at async recursiveDelete (C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\lib\recursive-delete.js:51:5)
+    at async Span.traceAsyncFn (C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\trace\trace.js:154:20)
+    at async HotReloaderWebpack.start (C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\server\dev\hot-reloader-webpack.js:612:9)
+    at async startWatcher (C:\Users\the_f\OneDrive\Escritorio\Proyectos\mercadolibre-blog\node_modules\next\dist\server\lib\router-utils\setup-dev-bundler.js:156:5) {
+  errno: -4071,
+  code: 'EINVAL',
+  syscall: 'readlink',
+  path: 'C:\\Users\\the_f\\OneDrive\\Escritorio\\Proyectos\\mercadolibre-blog\\.next\\server\\app-paths-manifest.json'
+}
+[?25h

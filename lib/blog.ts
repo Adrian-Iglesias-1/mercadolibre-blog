@@ -1,11 +1,46 @@
 import fs from 'fs';
 import path from 'path';
 import { BlogPost } from '@/types';
+import { supabase } from './supabase';
 
 const postsDirectory = path.join(process.cwd(), 'content', 'blog');
 
-export function getAllBlogPosts(): BlogPost[] {
+export async function getAllBlogPosts(): Promise<BlogPost[]> {
   try {
+    // 1. Intentar desde Supabase
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .order('published_at', { ascending: false });
+
+      if (error) {
+        console.error('❌ Error leyendo de Supabase:', error.message);
+      } else if (data && data.length > 0) {
+        console.log(`✅ Leídos ${data.length} posts desde Supabase`);
+        return data.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          slug: p.slug,
+          excerpt: p.excerpt,
+          content: p.content,
+          author: p.author,
+          publishedAt: p.published_at,
+          updatedAt: p.updated_at || p.published_at,
+          category: p.category,
+          tags: p.tags || [],
+          featured: p.featured,
+          imageUrl: p.image_url,
+          searchQuery: p.search_query
+        }));
+      } else {
+        console.log('ℹ️ No hay datos en Supabase, usando archivos locales...');
+      }
+    } else {
+      console.warn('⚠️ Supabase no configurado, usando archivos locales...');
+    }
+
+    // 2. Fallback a archivos locales
     if (!fs.existsSync(postsDirectory)) {
       return [];
     }
@@ -22,22 +57,18 @@ export function getAllBlogPosts(): BlogPost[] {
         const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---/;
         const match = fileContents.match(frontmatterRegex);
         
-        if (!match) {
-          console.error(`No frontmatter found in ${fileName}`);
-          return null;
-        }
+        if (!match) return null;
 
         const frontmatter = match[1];
         const content = fileContents.replace(frontmatterRegex, '').trim();
         
-        // Parse YAML frontmatter
         const data: any = {};
         frontmatter.split(/\r?\n/).forEach(line => {
           const separatorIndex = line.indexOf(':');
           if (separatorIndex !== -1) {
             const key = line.slice(0, separatorIndex).trim();
             const value = line.slice(separatorIndex + 1).trim();
-            data[key] = value.replace(/^["']|["']$/g, ''); // Remove quotes
+            data[key] = value.replace(/^["']|["']$/g, '');
           }
         });
 
@@ -59,7 +90,6 @@ export function getAllBlogPosts(): BlogPost[] {
       })
       .filter((post): post is BlogPost => !!post);
 
-    // Sort by date (newest first)
     return allPostsData.sort((a, b) => 
       new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
     );
@@ -69,9 +99,9 @@ export function getAllBlogPosts(): BlogPost[] {
   }
 }
 
-export function getBlogPostBySlug(slug: string): BlogPost | null {
+export async function getBlogPostBySlug(slug: string): Promise<BlogPost | null> {
   try {
-    const allPosts = getAllBlogPosts();
+    const allPosts = await getAllBlogPosts();
     return allPosts.find(post => post.slug === slug) || null;
   } catch (error) {
     console.error('Error getting blog post:', error);
@@ -79,9 +109,9 @@ export function getBlogPostBySlug(slug: string): BlogPost | null {
   }
 }
 
-export function getBlogPostsByCategory(category: string): BlogPost[] {
+export async function getBlogPostsByCategory(category: string): Promise<BlogPost[]> {
   try {
-    const allPosts = getAllBlogPosts();
+    const allPosts = await getAllBlogPosts();
     return allPosts.filter(post => post.category === category);
   } catch (error) {
     console.error('Error getting blog posts by category:', error);
@@ -89,18 +119,45 @@ export function getBlogPostsByCategory(category: string): BlogPost[] {
   }
 }
 
-export function getFeaturedBlogPosts(): BlogPost[] {
+export async function getFeaturedBlogPosts(): Promise<BlogPost[]> {
   try {
-    const allPosts = getAllBlogPosts();
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('blog_posts')
+        .select('*')
+        .eq('featured', true)
+        .order('published_at', { ascending: false });
+      
+      if (!error && data && data.length > 0) {
+        return data.map((p: any) => ({
+          id: p.id,
+          title: p.title,
+          slug: p.slug,
+          excerpt: p.excerpt,
+          content: p.content,
+          author: p.author,
+          publishedAt: p.published_at,
+          updatedAt: p.updated_at || p.published_at,
+          category: p.category,
+          tags: p.tags || [],
+          featured: p.featured,
+          imageUrl: p.image_url,
+          searchQuery: p.search_query
+        }));
+      }
+    }
+    
+    const allPosts = await getAllBlogPosts();
     return allPosts.filter(post => post.featured);
   } catch (error) {
     console.error('Error getting featured blog posts:', error);
     return [];
   }
 }
-export function searchBlogPosts(query: string): BlogPost[] {
+
+export async function searchBlogPosts(query: string): Promise<BlogPost[]> {
   try {
-    const allPosts = getAllBlogPosts();
+    const allPosts = await getAllBlogPosts();
     const q = query.toLowerCase();
     return allPosts.filter(post => 
       post.title.toLowerCase().includes(q) || 

@@ -16,7 +16,7 @@ export default function HeroSection() {
 
   return (
     <section 
-      className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden"
+      className="relative min-h-screen flex flex-col items-center justify-center"
       style={{
         background: `radial-gradient(ellipse 80% 60% at 60% 40%, rgba(232,255,71,0.06) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 20% 80%, rgba(71,200,255,0.04) 0%, transparent 50%), #0a0a0a`
       }}
@@ -24,14 +24,15 @@ export default function HeroSection() {
       {/* Grid Lines Overlay */}
       <div className="absolute inset-0 hero-grid-lines opacity-30"></div>
 
-      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto w-full">
+      <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-5xl mx-auto w-full overflow-visible">
         <div className="inline-flex items-center gap-2 bg-surface2-sh border border-white/10 px-3.5 py-1.5 rounded-full text-xs text-text-muted-sh tracking-wider mb-8 animate-fade-up">
           <span className="w-1.5 h-1.5 bg-accent-sh rounded-full animate-pulse"></span>
           📡 Actualizado en tiempo real desde Mercado Libre
         </div>
 
-        <h1 className="font-syne text-5xl md:text-[100px] font-extrabold leading-[0.95] tracking-[-3px] text-white animate-fade-up [animation-delay:100ms]">
-          Encontrá lo <span className="text-[#e8ff47]">mejor</span><br /> de Argentina
+        <h1 className="font-outfit text-6xl md:text-[90px] font-black leading-[1.1] tracking-[-2px] text-white animate-fade-up [animation-delay:100ms] text-center max-w-4xl">
+          Encontrá lo <span className="text-[#e8ff47]">mejor</span><br />
+          de Argentina
         </h1>
 
         <p className="mt-6 text-lg text-text-muted-sh font-light leading-relaxed max-w-lg animate-fade-up [animation-delay:200ms]">

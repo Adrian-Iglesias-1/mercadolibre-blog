@@ -8,6 +8,29 @@ interface ProductCardProps {
   rank?: number;
 }
 
+const parseSoldCount = (soldStr: string | undefined): string => {
+  if (!soldStr) return '';
+  
+  // Limpiar el string de "Nuevo | ", "vendidos", etc.
+  let cleaned = soldStr.toLowerCase()
+    .replace(/nuevo\s*\|\s*/i, '')
+    .replace(/vendidos/i, '')
+    .replace(/\+/g, '')
+    .trim();
+
+  if (cleaned.includes('mil')) {
+    const num = parseFloat(cleaned.replace('mil', '').replace(',', '.').trim());
+    return (num * 1000).toString();
+  }
+  
+  if (cleaned.includes('millón') || cleaned.includes('millon')) {
+    const num = parseFloat(cleaned.replace(/millon|millón/, '').replace(',', '.').trim());
+    return (num * 1000000).toString();
+  }
+
+  return cleaned.replace(/[^\d]/g, '');
+};
+
 export default function ProductCard({ product, rank }: ProductCardProps) {
   let imageUrl = product.imageUrl || '';
 
@@ -67,7 +90,7 @@ export default function ProductCard({ product, rank }: ProductCardProps) {
           </span>
           {product.soldCount && (
             <span className="text-[9px] text-white/30 font-medium">
-              +{product.soldCount.replace(/[^\d]/g, '')} vendidos
+              +{new Intl.NumberFormat('es-AR').format(Number(parseSoldCount(product.soldCount)))} vendidos
             </span>
           )}
         </div>

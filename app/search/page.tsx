@@ -7,13 +7,13 @@ export const metadata: Metadata = {
   description: 'Busca los mejores productos en tecnología, perfumes y más',
 };
 
-export default function SearchPage({
+export default async function SearchPage({
   searchParams,
 }: {
   searchParams?: { [key: string]: string | string[] | undefined };
 }) {
   const query = (searchParams?.q as string) || '';
-  const blogResults = query ? searchBlogPosts(query) : [];
+  const blogResults = query ? await searchBlogPosts(query) : [];
 
   return <ClientPage searchParams={searchParams} blogResults={blogResults} />;
 }

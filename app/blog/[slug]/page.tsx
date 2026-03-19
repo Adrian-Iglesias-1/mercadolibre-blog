@@ -63,7 +63,7 @@ async function RecommendedProducts({ query, category }: { query?: string, catego
 }
 
 export default async function BlogPostPage({ params }: { params: { slug: string } }) {
-  const post = getBlogPostBySlug(params.slug);
+  const post = await getBlogPostBySlug(params.slug);
 
   if (!post) {
     notFound();
@@ -94,10 +94,10 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
 
           <div className="flex items-center gap-4 text-text-muted-sh mb-10">
             <div className="h-10 w-10 bg-accent-sh rounded-full flex items-center justify-center text-black-sh font-bold">
-              {post.author.charAt(0)}
+              {post.author ? post.author.charAt(0) : 'S'}
             </div>
             <div>
-              <p className="font-bold text-text-sh leading-none mb-1">{post.author}</p>
+              <p className="font-bold text-text-sh leading-none mb-1">{post.author || 'ShopHub Team'}</p>
               <p className="text-sm">
                 {new Date(post.publishedAt).toLocaleDateString('es-AR', {
                   day: 'numeric',

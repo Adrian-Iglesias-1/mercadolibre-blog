@@ -1,8 +1,11 @@
 import Link from 'next/link';
 import { getAllBlogPosts } from '@/lib/blog';
 import { getProductsFromSheet } from '@/lib/google-sheets';
-import ProductCard from '@/components/ProductCard';
+import InfiniteProductGrid from '@/components/InfiniteProductGrid';
 import HeroSection from '@/components/HeroSection';
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export default async function HomePage({ 
   searchParams 
@@ -149,17 +152,7 @@ export default async function HomePage({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {bestSellers.map((product, index) => (
-              <ProductCard key={product.id} product={product} rank={index + 1} />
-            ))}
-          </div>
-
-          {bestSellers.length === 0 && (
-            <div className="py-20 text-center bg-black/20 rounded-[32px] border border-dashed border-white/5">
-              <p className="text-text-muted-sh font-light text-lg">No encontramos productos en esta categoría por ahora.</p>
-            </div>
-          )}
+          <InfiniteProductGrid products={filteredProducts} />
         </div>
       </section>
 

@@ -21,7 +21,7 @@ const config: Config = {
         'text-muted-sh': '#888',
       },
       fontFamily: {
-        syne: ['Syne', 'sans-serif'],
+        outfit: ['Outfit', 'sans-serif'],
         dmsans: ['DM Sans', 'sans-serif'],
       },
       backgroundImage: {
