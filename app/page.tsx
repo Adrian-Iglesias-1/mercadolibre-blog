@@ -81,7 +81,7 @@ export default async function HomePage({
   return (
     <div className="min-h-screen bg-black-sh">
       {/* HERO SECTION */}
-      <HeroSection />
+      <HeroSection productCount={allSheetProducts.length} />
 
       {/* CATEGORY HUB */}
       <section className="py-12 px-6 md:px-12 bg-black-sh">

@@ -35,16 +35,16 @@ export default function Footer() {
         <div className="flex flex-col gap-4">
           <h4 className="font-syne font-bold text-sm text-white uppercase tracking-wider">Legal</h4>
           <ul className="flex flex-col gap-2">
-            <li><Link href="/" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Política de afiliados</Link></li>
-            <li><Link href="/" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Privacidad</Link></li>
-            <li><Link href="/" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Términos de uso</Link></li>
+            <li><Link href="/afiliados" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Política de afiliados</Link></li>
+            <li><Link href="/privacidad" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Privacidad</Link></li>
+            <li><Link href="/terminos" className="text-sm text-text-muted-sh hover:text-text-sh transition-colors">Términos de uso</Link></li>
           </ul>
         </div>
       </div>
 
       <div className="max-w-7xl mx-auto mt-12 pt-8 border-t border-white/5 flex flex-col md:flex-row justify-between items-center gap-4">
         <span className="text-xs text-text-muted-sh">
-          © 2026 ShopHub. Sitio de afiliados de <Link href="#" className="text-accent-sh hover:underline">Mercado Libre</Link>.
+          © 2026 ShopHub. <Link href="/afiliados" className="text-accent-sh hover:underline">Sitio de afiliados</Link> de Mercado Libre.
         </span>
         <span className="text-xs text-text-muted-sh">
           Hecho con ♥ en Argentina

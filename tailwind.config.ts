@@ -23,6 +23,7 @@ const config: Config = {
       fontFamily: {
         outfit: ['Outfit', 'sans-serif'],
         dmsans: ['DM Sans', 'sans-serif'],
+        syne: ['Syne', 'Outfit', 'sans-serif'],
       },
       backgroundImage: {
         'hero-gradient': 'radial-gradient(ellipse 80% 60% at 60% 40%, rgba(232,255,71,0.07) 0%, transparent 60%), radial-gradient(ellipse 50% 40% at 20% 80%, rgba(71,200,255,0.05) 0%, transparent 50%)',

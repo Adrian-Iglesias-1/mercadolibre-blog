@@ -112,15 +112,36 @@ export default function Navigation() {
             </Link>
             
             <div className="mt-10 flex gap-6">
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01"/><path d="M18 12h.01"/></svg>
-              </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m4 6 8-4 8 4-8 4-8-4Z"/><path d="m12 12 8-4V5l-8 4-8-4v3l8 4Z"/><path d="m12 22 8-4V9l-8 4-8-4v9l8 4Z"/></svg>
-              </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
-                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              </div>
+              <Link
+                href="/categorias"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex flex-col items-center gap-2 text-text-muted-sh hover:text-accent-sh transition-colors"
+              >
+                <span className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">Categorías</span>
+              </Link>
+              <Link
+                href="/blog"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex flex-col items-center gap-2 text-text-muted-sh hover:text-accent-sh transition-colors"
+              >
+                <span className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20"/></svg>
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">Blog</span>
+              </Link>
+              <Link
+                href="/"
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="flex flex-col items-center gap-2 text-text-muted-sh hover:text-accent-sh transition-colors"
+              >
+                <span className="bg-white/5 p-4 rounded-2xl border border-white/10 text-accent-sh">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </span>
+                <span className="text-[11px] font-bold uppercase tracking-widest">Inicio</span>
+              </Link>
             </div>
           </div>
         </div>
