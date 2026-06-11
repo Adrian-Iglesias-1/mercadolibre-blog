@@ -3,6 +3,7 @@ import { getAllBlogPosts } from '@/lib/blog';
 import { getProductsFromSheet } from '@/lib/google-sheets';
 import InfiniteProductGrid from '@/components/InfiniteProductGrid';
 import HeroSection from '@/components/HeroSection';
+import NewsletterForm from '@/components/NewsletterForm';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -249,16 +250,7 @@ export default async function HomePage({
             Sin spam. Solo comparativas reales, bajadas de precio históricas y las mejores guías de compra de Argentina.
           </p>
           
-          <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-            <input 
-              type="email" 
-              placeholder="Tu mejor correo..."
-              className="flex-1 px-6 py-4 rounded-2xl bg-black-sh/5 border border-black-sh/10 text-black-sh placeholder:text-black-sh/30 focus:outline-none focus:bg-black-sh/10 transition-colors font-bold"
-            />
-            <button className="bg-black-sh text-accent-sh px-8 py-4 rounded-2xl font-syne font-black tracking-widest uppercase hover:scale-105 transition-transform shadow-xl">
-              ¡Me interesa!
-            </button>
-          </form>
+          <NewsletterForm source="homepage" />
           
           <p className="mt-8 text-black-sh/40 text-[10px] font-bold tracking-widest uppercase">
             Sumate a los +1.200 ahorradores que leen nuestro magazine
