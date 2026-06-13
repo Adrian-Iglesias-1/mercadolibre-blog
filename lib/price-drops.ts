@@ -1,5 +1,10 @@
 import { supabase } from './supabase';
 
+// Flag temporal: la fuente de precios (snapshot vía link de afiliado) no es
+// confiable todavía — leía el precio de la página equivocada. Se reactiva
+// cuando snapshot-prices.js lea desde source_url (la página real del producto).
+export const PRICE_DROPS_ENABLED = false;
+
 export interface PriceDrop {
   currentPrice: number;   // precio más reciente del historial
   previousPrice: number;  // precio de referencia (pico: registrado o máximo histórico)

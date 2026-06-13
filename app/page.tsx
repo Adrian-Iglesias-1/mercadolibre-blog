@@ -7,7 +7,7 @@ import NewsletterForm from '@/components/NewsletterForm';
 import ProductCard from '@/components/ProductCard';
 import { macroCategories, getMacroCategorySlug } from '@/lib/macro-categories';
 import { getTopSellersByMacroCategory } from '@/lib/top-sellers';
-import { getPriceDropsMap } from '@/lib/price-drops';
+import { getPriceDropsMap, PRICE_DROPS_ENABLED } from '@/lib/price-drops';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -20,7 +20,7 @@ export default async function HomePage({
   const [rawProducts, blogPosts, priceDrops] = await Promise.all([
     getProductsFromSheet(),
     getAllBlogPosts(),
-    getPriceDropsMap(5),
+    PRICE_DROPS_ENABLED ? getPriceDropsMap(5) : Promise.resolve(new Map()),
   ]);
 
   // Enriquecemos cada producto con su info de bajada de precio (si la tiene),
