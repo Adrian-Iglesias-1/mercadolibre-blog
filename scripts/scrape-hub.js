@@ -4,6 +4,7 @@ const { GoogleSpreadsheet } = require('google-spreadsheet');
 const { JWT } = require('google-auth-library');
 const fs = require('fs');
 const path = require('path');
+const readline = require('readline');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env.local') });
 const { createClient } = require('@supabase/supabase-js');
 
@@ -13,7 +14,7 @@ const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_SPREADSHEET_ID || '1eZ_ql4KR4TZ
 const CHROME_PATH = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const USER_DATA_DIR = path.join(__dirname, 'session_data');
 const URL_HUB = 'https://www.mercadolibre.com.ar/afiliados/hub#menu-user';
-const MAX_PRODUCTOS = 100;
+const MAX_PRODUCTOS = 1500; // tope alto: el scroll se detiene solo cuando el hub deja de cargar más
 const PRODUCTS_JSON_PATH = path.join(__dirname, '..', 'content', 'products.json');
 
 const supabase = createClient(
@@ -47,6 +48,16 @@ function formatCategory(rawCategory) {
 
 function sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+function esperarEnter(mensaje) {
+  return new Promise((resolve) => {
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    rl.question(mensaje, () => {
+      rl.close();
+      resolve();
+    });
+  });
 }
 
 function limpiarPrecio(precio) {
@@ -227,41 +238,53 @@ async function procesarProducto(page, url) {
   }
 }
 
-// ─── GUARDAR EN GOOGLE SHEETS ─────────────────────────────
+// ─── GOOGLE CREDENTIALS (OPCIONAL) ────────────────────────
 
-async function guardarEnSheets(resultados) {
-  if (resultados.length === 0) return;
-  console.log(`\n📊 Guardando ${resultados.length} productos nuevos en Google Sheets...`);
+const GOOGLE_CREDS_PATH = path.join(__dirname, '..', 'google-credentials.json');
 
-  // Usamos la ruta que sabemos que existe en el proyecto
-  const creds = require('../google-credentials.json');
-  const auth = new JWT({
+function getGoogleAuth() {
+  if (!fs.existsSync(GOOGLE_CREDS_PATH)) return null;
+  const creds = require(GOOGLE_CREDS_PATH);
+  return new JWT({
     email: creds.client_email,
     key: creds.private_key,
     scopes: ['https://www.googleapis.com/auth/spreadsheets'],
   });
+}
 
-  const doc = new GoogleSpreadsheet(SPREADSHEET_ID, auth);
-  await doc.loadInfo();
-  const sheet = doc.sheetsByIndex[0];
+// ─── GUARDAR EN GOOGLE SHEETS (opcional) + JSON + SUPABASE ─
 
-  // IMPORTANTE: Ya no limpiamos el sheet para no borrar lo anterior
-  // Si la hoja está vacía, ponemos los headers
-  const rows = await sheet.getRows();
-  if (rows.length === 0) {
-    await sheet.setHeaderRow([
-      'Nombre', 'Precio', 'URL Original', 'Link Afiliado', 'Imagen', 'Categoría', 'Vendidos', 'Fecha Captura'
-    ]);
+async function guardarEnSheets(resultados) {
+  if (resultados.length === 0) return;
+
+  const auth = getGoogleAuth();
+  if (auth) {
+    console.log(`\n📊 Guardando ${resultados.length} productos nuevos en Google Sheets...`);
+
+    const doc = new GoogleSpreadsheet(SPREADSHEET_ID, auth);
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0];
+
+    // IMPORTANTE: Ya no limpiamos el sheet para no borrar lo anterior
+    // Si la hoja está vacía, ponemos los headers
+    const rows = await sheet.getRows();
+    if (rows.length === 0) {
+      await sheet.setHeaderRow([
+        'Nombre', 'Precio', 'URL Original', 'Link Afiliado', 'Imagen', 'Categoría', 'Vendidos', 'Fecha Captura'
+      ]);
+    }
+
+    const filas = resultados.map(r => ([
+      r.nombre, r.precio, r.urlOriginal, r.linkAfiliado, r.imagen, r.categoria, r.vendidos, r.fechaCaptura
+    ]));
+
+    await sheet.addRows(filas);
+    console.log('💾 ¡Anexado exitoso en Google Sheets!');
+  } else {
+    console.log('\n⏭️ Sin google-credentials.json: se omite Google Sheets, guardamos directo en Supabase.');
   }
 
-  const filas = resultados.map(r => ([
-    r.nombre, r.precio, r.urlOriginal, r.linkAfiliado, r.imagen, r.categoria, r.vendidos, r.fechaCaptura
-  ]));
-
-  await sheet.addRows(filas);
-  console.log('💾 ¡Anexado exitoso en Google Sheets!');
-
-  // --- NUEVO: GUARDAR EN JSON LOCAL ---
+  // --- GUARDAR EN JSON LOCAL ---
   try {
     let allProducts = [];
     if (fs.existsSync(PRODUCTS_JSON_PATH)) {
@@ -340,27 +363,27 @@ async function guardarEnSheets(resultados) {
 
 async function main() {
   // 1. Obtener URLs ya existentes para no repetir
-  const creds = require('../google-credentials.json');
-  const auth = new JWT({ email: creds.client_email, key: creds.private_key, scopes: ['https://www.googleapis.com/auth/spreadsheets'] });
-  const doc = new GoogleSpreadsheet(SPREADSHEET_ID, auth);
-  await doc.loadInfo();
-  const sheet = doc.sheetsByIndex[0];
-  const rows = await sheet.getRows();
-  
   // Priorizamos las URLs del JSON local si existe
   let urlsExistentes = new Set();
   if (fs.existsSync(PRODUCTS_JSON_PATH)) {
     const localData = JSON.parse(fs.readFileSync(PRODUCTS_JSON_PATH, 'utf8') || '[]');
     localData.forEach(p => urlsExistentes.add(p.productUrl.split('?')[0]));
   }
-  
-  // También sumamos las de la sheet por seguridad
-  rows.forEach(row => {
-    const url = row.get('URL Original') || row.get('Link Afiliado');
-    if (url) urlsExistentes.add(url.split('?')[0]);
-  });
-  
-  // NUEVO: Sumar las de Supabase
+
+  // Si hay credenciales de Google, también sumamos las de la sheet
+  const auth = getGoogleAuth();
+  if (auth) {
+    const doc = new GoogleSpreadsheet(SPREADSHEET_ID, auth);
+    await doc.loadInfo();
+    const sheet = doc.sheetsByIndex[0];
+    const rows = await sheet.getRows();
+    rows.forEach(row => {
+      const url = row.get('URL Original') || row.get('Link Afiliado');
+      if (url) urlsExistentes.add(url.split('?')[0]);
+    });
+  }
+
+  // Sumar las de Supabase
   const { data: sbData, error: sbError } = await supabase
     .from('products')
     .select('product_url');
@@ -387,10 +410,12 @@ async function main() {
   try {
     await page.goto(URL_HUB, { waitUntil: 'networkidle2' });
 
+    await esperarEnter('\n👉 Si la página te pide login, iniciá sesión ahora en la ventana de Chrome.\n   Cuando veas el hub de afiliados cargado, volvé acá y presioná ENTER para continuar...\n');
+
     console.log("🖱️ Seleccionando 'Más vendidos'...");
     const botonMasVendidos = await page.waitForSelector(
       'xpath/.//button[contains(., "Más vendidos")]',
-      { visible: true, timeout: 15000 }
+      { visible: true, timeout: 30000 }
     );
     await botonMasVendidos.click();
     await sleep(4000);
@@ -412,7 +437,7 @@ async function main() {
         resultados.push(resultado);
       }
 
-      if (resultados.length >= 50) break; // Límite de seguridad por sesión
+      // Sin límite de cantidad: procesamos todos los links nuevos del hub
 
       if ((i + 1) % 10 === 0 && i + 1 < links.length) {
         await sleep(5000);
