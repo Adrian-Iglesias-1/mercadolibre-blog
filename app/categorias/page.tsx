@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { getProductsFromSheet } from '@/lib/google-sheets';
-import Navigation from '@/components/Navigation';
+import { macroCategories, getMacroCategorySlug } from '@/lib/macro-categories';
 
 export const metadata = {
   title: 'Categorías - ShopHub AR',
@@ -9,45 +9,18 @@ export const metadata = {
 
 export default async function CategoriesPage() {
   const allSheetProducts = await getProductsFromSheet();
-  
-  // Mapeo de iconos para categorías
-  const iconMap: { [key: string]: string } = {
-    perros: '🐶', gatos: '🐱', mascotas: '🐾',
-    audio: '🎧', musica: '🎵', parlantes: '🔊',
-    tecnologia: '💻', celulares: '📱', smartwatches: '⌚',
-    hogar: '🏠', cocina: '🍳', muebles: '🛋️',
-    herramientas: '🛠️', jardin: '🌱',
-    belleza: '✨', perfumes: '🌸', cabello: '💇',
-    deportes: '⚽', fitness: '🏋️',
-    libros: '📚', juguetes: '🧸',
-    gaming: '🎮', consolas: '🕹️'
-  };
 
-  // Función de normalización consistente con el resto de la app
-  const normalize = (str: string) => 
-    str.toLowerCase()
-       .normalize("NFD")
-       .replace(/[\u0300-\u036f]/g, "")
-       .replace(/[^a-z0-9\s-]/g, '')
-       .trim()
-       .replace(/\s+/g, '-');
-
-  // Extraer categorías únicas y contarlas
-  const categoryCounts = allSheetProducts.reduce((acc: {[key: string]: number}, p) => {
-    const catName = (p as any).category.name;
-    acc[catName] = (acc[catName] || 0) + 1;
+  // Agrupar productos en ~16 categorías madre y contarlos
+  const categoryCounts = allSheetProducts.reduce((acc: { [slug: string]: number }, p) => {
+    const slug = getMacroCategorySlug((p as any).category?.name);
+    acc[slug] = (acc[slug] || 0) + 1;
     return acc;
   }, {});
 
-  const sheetCategories = Object.entries(categoryCounts)
-    .map(([name, count]) => {
-      const slug = normalize(name);
-      const keyword = Object.keys(iconMap).find(k => slug.includes(k));
-      const icon = iconMap[keyword || ''] || allSheetProducts.find(p => (p as any).category.name === name)?.category.icon || '📦';
-      
-      return { name, count, slug, icon };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name)); // Ordenar alfabéticamente para la lista completa
+  const sheetCategories = macroCategories
+    .filter((cat) => categoryCounts[cat.slug] > 0)
+    .map((cat) => ({ ...cat, count: categoryCounts[cat.slug] }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   return (
     <div className="min-h-screen bg-black-sh pt-32 pb-20">
@@ -61,7 +34,7 @@ export default async function CategoriesPage() {
             <span className="mr-2 group-hover:-translate-x-1 transition-transform">←</span>
             Volver al inicio
           </Link>
-          
+
           <div className="flex items-center gap-3 mb-4">
              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent-sh">
               <path d="m16 16 3-8 3 8c-.875 0-1.375-.5-2-1-.625.5-1.125 1-2 1Z"/><path d="m2 16 3-8 3 8c-.875 0-1.375-.5-2-1-.625.5-1.125 1-2 1Z"/><path d="M7 21h10"/><path d="M12 21v-7"/><path d="M3 9h18"/>
@@ -72,14 +45,14 @@ export default async function CategoriesPage() {
             Todas las <br />Categorías
           </h1>
           <p className="text-lg text-text-muted-sh font-light max-w-2xl leading-relaxed">
-            Navegá por nuestra selección completa de temas y encontrá los mejores productos 
+            Navegá por nuestra selección completa de temas y encontrá los mejores productos
             verificados y en oferta de Mercado Libre.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {sheetCategories.map((cat) => (
-            <Link 
+            <Link
               key={cat.slug}
               href={`/?category=${cat.slug}`}
               className="group bg-surface2-sh border border-white/5 p-6 rounded-[24px] hover:border-accent-sh/30 transition-all duration-300"

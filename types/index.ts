@@ -11,6 +11,11 @@ export interface Product {
   discount?: number;
   originalPrice?: string;
   soldCount?: string;
+  priceDrop?: {
+    currentPrice: number;
+    previousPrice: number;
+    dropPct: number;
+  };
 }
 
 export interface Category {

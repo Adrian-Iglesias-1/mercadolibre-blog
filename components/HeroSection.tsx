@@ -40,7 +40,7 @@ export default function HeroSection({ productCount }: { productCount?: number })
         </h1>
 
         <p className="mt-6 text-lg text-text-muted-sh font-light leading-relaxed max-w-lg animate-fade-up [animation-delay:200ms]">
-          Miles de productos analizados. Solo las mejores ofertas, verificadas y con envío gratis.
+          Miles de productos analizados. Solo las mejores ofertas, verificadas.
         </p>
 
         <form 

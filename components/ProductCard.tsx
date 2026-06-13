@@ -2,34 +2,12 @@
 
 import { Product } from '@/types';
 import Link from 'next/link';
+import { parseSoldCount } from '@/lib/sold-count';
 
 interface ProductCardProps {
   product: Product;
   rank?: number;
 }
-
-const parseSoldCount = (soldStr: string | undefined): string => {
-  if (!soldStr) return '';
-  
-  // Limpiar el string de "Nuevo | ", "vendidos", etc.
-  let cleaned = soldStr.toLowerCase()
-    .replace(/nuevo\s*\|\s*/i, '')
-    .replace(/vendidos/i, '')
-    .replace(/\+/g, '')
-    .trim();
-
-  if (cleaned.includes('mil')) {
-    const num = parseFloat(cleaned.replace('mil', '').replace(',', '.').trim());
-    return (num * 1000).toString();
-  }
-  
-  if (cleaned.includes('millón') || cleaned.includes('millon')) {
-    const num = parseFloat(cleaned.replace(/millon|millón/, '').replace(',', '.').trim());
-    return (num * 1000000).toString();
-  }
-
-  return cleaned.replace(/[^\d]/g, '');
-};
 
 export default function ProductCard({ product, rank }: ProductCardProps) {
   let imageUrl = product.imageUrl || '';
@@ -49,6 +27,15 @@ export default function ProductCard({ product, rank }: ProductCardProps) {
     ? `/api/image-proxy?url=${encodeURIComponent(imageUrl)}`
     : '';
 
+  const drop = product.priceDrop;
+  const fmtPrice = (value: number) =>
+    new Intl.NumberFormat('es-AR', {
+      style: 'currency',
+      currency: 'ARS',
+      maximumFractionDigits: 0,
+    }).format(value);
+  const displayPrice = drop ? drop.currentPrice : Number(product.price);
+
   return (
     <div className="group relative bg-[#1a1a1a] border border-white/8 rounded-2xl overflow-hidden transition-all duration-300 hover:border-[rgba(232,255,71,0.2)] hover:-translate-y-1.5 hover:shadow-[0_20px_60px_rgba(0,0,0,0.5)] flex flex-col h-full">
 
@@ -60,6 +47,14 @@ export default function ProductCard({ product, rank }: ProductCardProps) {
             : 'bg-black border-white/10 text-[#888]'
         }`}>
           {rank}
+        </div>
+      )}
+
+      {/* Price Drop Badge */}
+      {drop && (
+        <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-[#ff4747] text-white text-[11px] font-syne font-black px-2 py-1 rounded-lg shadow-xl">
+          <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
+          {drop.dropPct}%
         </div>
       )}
 
@@ -90,7 +85,7 @@ export default function ProductCard({ product, rank }: ProductCardProps) {
           </span>
           {product.soldCount && (
             <span className="text-[9px] text-white/30 font-medium">
-              +{new Intl.NumberFormat('es-AR').format(Number(parseSoldCount(product.soldCount)))} vendidos
+              +{new Intl.NumberFormat('es-AR').format(parseSoldCount(product.soldCount))} vendidos
             </span>
           )}
         </div>
@@ -100,13 +95,19 @@ export default function ProductCard({ product, rank }: ProductCardProps) {
         </h3>
 
         <div className="mt-auto pt-4 border-t border-white/5">
+          {drop && (
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[12px] text-white/35 line-through font-medium">
+                {fmtPrice(drop.previousPrice)}
+              </span>
+              <span className="text-[10px] font-bold text-[#ff6b6b] uppercase tracking-wide">
+                Bajó {drop.dropPct}%
+              </span>
+            </div>
+          )}
           <div className="flex items-baseline gap-1 mb-3">
-            <span className="text-xl font-syne font-black text-white">
-              {new Intl.NumberFormat('es-AR', {
-                style: 'currency',
-                currency: 'ARS',
-                maximumFractionDigits: 0,
-              }).format(Number(product.price))}
+            <span className={`text-xl font-syne font-black ${drop ? 'text-[#e8ff47]' : 'text-white'}`}>
+              {fmtPrice(displayPrice)}
             </span>
           </div>
 
