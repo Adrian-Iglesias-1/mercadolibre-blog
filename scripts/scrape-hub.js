@@ -344,6 +344,7 @@ async function guardarEnSheets(resultados) {
         title: r.nombre,
         price: r.precio,
         productUrl: r.linkAfiliado,
+        sourceUrl: r.urlOriginal || null,
         mlaId: r.mlaId || null,
         imageUrl: r.imagen,
         category: {
@@ -379,6 +380,7 @@ async function guardarEnSheets(resultados) {
         title: r.nombre,
         price: parseFloat(r.precio) || 0,
         product_url: r.linkAfiliado,
+        source_url: r.urlOriginal || null,
         mla_id: r.mlaId || null,
         image_url: r.imagen,
         category_id: cat.id,
@@ -394,15 +396,15 @@ async function guardarEnSheets(resultados) {
       .from('products')
       .upsert(supabaseData, { onConflict: 'product_url' });
 
-    // Compat: si todavía no corriste la migración que agrega la columna mla_id,
-    // reintentamos sin ese campo para no bloquear el guardado.
-    if (sbError && /mla_id/i.test(sbError.message)) {
-      console.warn('⚠️ La columna mla_id no existe aún en Supabase. Guardando sin ella.');
-      console.warn('   Corré scripts/add-mla-id-column.sql para habilitar la dedup robusta.');
-      const sinMla = supabaseData.map(({ mla_id, ...resto }) => resto);
+    // Compat: si todavía no corriste las migraciones que agregan las columnas
+    // mla_id / source_url, reintentamos sin esos campos para no bloquear el guardado.
+    if (sbError && /mla_id|source_url/i.test(sbError.message)) {
+      console.warn('⚠️ Falta alguna columna (mla_id/source_url) en Supabase. Guardando sin ellas.');
+      console.warn('   Corré scripts/add-mla-id-column.sql y scripts/add-source-url-column.sql.');
+      const reducido = supabaseData.map(({ mla_id, source_url, ...resto }) => resto);
       ({ error: sbError } = await supabase
         .from('products')
-        .upsert(sinMla, { onConflict: 'product_url' }));
+        .upsert(reducido, { onConflict: 'product_url' }));
     }
 
     if (sbError) {
