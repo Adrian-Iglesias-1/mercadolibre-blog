@@ -3,71 +3,49 @@ import { getAllBlogPosts } from '@/lib/blog';
 import { getProductsFromSheet } from '@/lib/google-sheets';
 import InfiniteProductGrid from '@/components/InfiniteProductGrid';
 import HeroSection from '@/components/HeroSection';
+import NewsletterForm from '@/components/NewsletterForm';
+import ProductCard from '@/components/ProductCard';
+import { macroCategories, getMacroCategorySlug } from '@/lib/macro-categories';
+import { getTopSellersByMacroCategory } from '@/lib/top-sellers';
+import { getPriceDropsMap } from '@/lib/price-drops';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-export default async function HomePage({ 
-  searchParams 
-}: { 
-  searchParams: { category?: string } 
+export default async function HomePage({
+  searchParams
+}: {
+  searchParams: { category?: string }
 }) {
-  const allSheetProducts = await getProductsFromSheet();
-  const blogPosts = await getAllBlogPosts();
-  
-  // Función de normalización consistente con el resto de la app
-  const normalize = (str: string) => 
-    str.toLowerCase()
-       .normalize("NFD")
-       .replace(/[\u0300-\u036f]/g, "")
-       .replace(/[^a-z0-9\s-]/g, '')
-       .trim()
-       .replace(/\s+/g, '-');
-  
-  // Extraer categorías únicas de la Sheet y contarlas
-  const categoryCounts = allSheetProducts.reduce((acc: {[key: string]: number}, p) => {
-    const catName = (p as any).category.name;
-    acc[catName] = (acc[catName] || 0) + 1;
+  const [rawProducts, blogPosts, priceDrops] = await Promise.all([
+    getProductsFromSheet(),
+    getAllBlogPosts(),
+    getPriceDropsMap(5),
+  ]);
+
+  // Enriquecemos cada producto con su info de bajada de precio (si la tiene),
+  // así el badge aparece en todas las grillas (destacados, ranking, etc.).
+  const allSheetProducts = rawProducts.map((p) => {
+    const drop = priceDrops.get((p as any).productUrl);
+    return drop ? { ...p, priceDrop: drop } : p;
+  });
+
+  // Agrupar productos en ~16 categorías madre y contarlos
+  const categoryCounts = allSheetProducts.reduce((acc: { [slug: string]: number }, p) => {
+    const slug = getMacroCategorySlug((p as any).category?.name);
+    acc[slug] = (acc[slug] || 0) + 1;
     return acc;
   }, {});
 
-  // Mapeo simple de iconos para categorías comunes
-  const iconMap: { [key: string]: string } = {
-    perros: '🐶', gatos: '🐱', mascotas: '🐾',
-    audio: '🎧', musica: '🎵', parlantes: '🔊',
-    tecnologia: '💻', celulares: '📱', smartwatches: '⌚',
-    hogar: '🏠', cocina: '🍳', muebles: '🛋️',
-    herramientas: '🛠️', jardin: '🌱',
-    belleza: '✨', perfumes: '🌸', cabello: '💇',
-    deportes: '⚽', fitness: '🏋️',
-    libros: '📚', juguetes: '🧸',
-    gaming: '🎮', consolas: '🕹️'
-  };
-
-  const sheetCategories = Object.entries(categoryCounts)
-    .map(([name, count]) => {
-      const slug = normalize(name);
-      // Buscar icono por palabra clave
-      const keyword = Object.keys(iconMap).find(k => slug.includes(k));
-      const icon = iconMap[keyword || ''] || allSheetProducts.find(p => (p as any).category.name === name)?.category.icon || '📦';
-      
-      return { name, count, slug, icon };
-    })
+  const sheetCategories = macroCategories
+    .filter((cat) => categoryCounts[cat.slug] > 0)
+    .map((cat) => ({ ...cat, count: categoryCounts[cat.slug] }))
     .sort((a, b) => b.count - a.count);
 
   const selectedCategory = searchParams.category;
-  
-  // Filtrar productos de forma robusta
-  const filteredProducts = selectedCategory 
-    ? allSheetProducts.filter(p => {
-        const productCatSlug = (p as any).category.slug;
-        const productCatId = (p as any).category.id;
-        const productCatName = (p as any).category.name;
-        
-        return productCatSlug === selectedCategory || 
-               productCatId === selectedCategory ||
-               normalize(productCatName) === selectedCategory;
-      })
+
+  const filteredProducts = selectedCategory
+    ? allSheetProducts.filter((p) => getMacroCategorySlug((p as any).category?.name) === selectedCategory)
     : allSheetProducts;
 
   const bestSellers = filteredProducts.slice(0, 10);
@@ -78,10 +56,49 @@ export default async function HomePage({
   const mainCategories = sheetCategories.slice(0, 8);
   const hasMoreCategories = sheetCategories.length > 8;
 
+  // Productos que bajaron de precio (dato real del historial), ordenados por
+  // mayor % de baja. Respeta el filtro de categoría activo.
+  const priceDropProducts = filteredProducts
+    .filter((p) => (p as any).priceDrop)
+    .sort((a, b) => (b as any).priceDrop.dropPct - (a as any).priceDrop.dropPct)
+    .slice(0, 10);
+
+  // Ranking de "más vendidos" por categoría madre (dato real de soldCount de ML)
+  const topSellersByCategory = selectedCategory ? [] : getTopSellersByMacroCategory(allSheetProducts, 5);
+
+  // JSON-LD: ranking de productos como ItemList con datos de oferta reales
+  const rankingJsonLd = topSellersByCategory.length > 0
+    ? {
+        '@context': 'https://schema.org',
+        '@type': 'ItemList',
+        name: 'Lo Más Vendido por Categoría - ShopHub AR',
+        itemListElement: topSellersByCategory.flatMap(({ topProducts }) =>
+          topProducts.map((product, index) => ({
+            '@type': 'ListItem',
+            position: index + 1,
+            item: {
+              '@type': 'Product',
+              name: product.title,
+              image: product.imageUrl,
+              url: product.productUrl,
+              brand: product.brand || undefined,
+              offers: {
+                '@type': 'Offer',
+                price: product.price,
+                priceCurrency: 'ARS',
+                availability: 'https://schema.org/InStock',
+                url: product.productUrl,
+              },
+            },
+          }))
+        ),
+      }
+    : null;
+
   return (
     <div className="min-h-screen bg-black-sh">
       {/* HERO SECTION */}
-      <HeroSection />
+      <HeroSection productCount={allSheetProducts.length} />
 
       {/* CATEGORY HUB */}
       <section className="py-12 px-6 md:px-12 bg-black-sh">
@@ -133,6 +150,30 @@ export default async function HomePage({
         </div>
       </section>
 
+      {/* PRICE DROPS SECTION */}
+      {priceDropProducts.length > 0 && (
+        <section className="py-24 px-6 md:px-12 bg-black-sh border-t border-white/10">
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-[#ff4747] text-lg">📉</span>
+              <p className="text-[#ff6b6b] text-[11px] font-semibold tracking-[3px] uppercase">Bajaron de precio</p>
+            </div>
+            <h2 className="font-syne text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-none mb-3">
+              Oportunidades<br />de hoy
+            </h2>
+            <p className="text-text-muted-sh font-light max-w-2xl mb-12">
+              Productos cuyo precio bajó respecto al último valor que registramos. Comparado contra el historial real de Mercado Libre.
+            </p>
+
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+              {priceDropProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* TOP 10 SECTION */}
       <section className="py-24 px-6 md:px-12 bg-surface-sh border-y border-white/10">
         <div className="max-w-7xl mx-auto">
@@ -155,6 +196,54 @@ export default async function HomePage({
           <InfiniteProductGrid products={filteredProducts} />
         </div>
       </section>
+
+      {/* RANKING POR CATEGORÍA */}
+      {topSellersByCategory.length > 0 && (
+        <section className="py-24 px-6 md:px-12 bg-black-sh">
+          {rankingJsonLd && (
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(rankingJsonLd) }}
+            />
+          )}
+          <div className="max-w-7xl mx-auto">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="text-accent-sh text-lg">🏆</span>
+              <p className="text-accent-sh text-[11px] font-semibold tracking-[3px] uppercase">Ranking Real de Mercado Libre</p>
+            </div>
+            <h2 className="font-syne text-4xl md:text-5xl font-extrabold text-white tracking-tight leading-none mb-3">
+              Lo Más Vendido<br />por Categoría
+            </h2>
+            <p className="text-text-muted-sh font-light max-w-2xl mb-12">
+              Ordenado por la cantidad real de &quot;vendidos&quot; que reporta Mercado Libre en cada producto.
+            </p>
+
+            <div className="space-y-16">
+              {topSellersByCategory.map(({ macro, count, topProducts }) => (
+                <div key={macro.slug}>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="font-syne text-2xl font-bold text-white flex items-center gap-3">
+                      <span>{macro.icon}</span>
+                      {macro.name}
+                    </h3>
+                    <Link
+                      href={`/?category=${macro.slug}`}
+                      className="text-[10px] font-bold text-text-muted-sh hover:text-white transition-colors uppercase tracking-widest border-b border-white/10 pb-1"
+                    >
+                      Ver los {count} productos
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                    {topProducts.map((product, index) => (
+                      <ProductCard key={product.id} product={product} rank={index + 1} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* MAGAZINE SECTION */}
       <section className="py-24 px-6 md:px-12 bg-black-sh">
@@ -249,16 +338,7 @@ export default async function HomePage({
             Sin spam. Solo comparativas reales, bajadas de precio históricas y las mejores guías de compra de Argentina.
           </p>
           
-          <form className="flex flex-col sm:flex-row gap-4 max-w-lg mx-auto">
-            <input 
-              type="email" 
-              placeholder="Tu mejor correo..."
-              className="flex-1 px-6 py-4 rounded-2xl bg-black-sh/5 border border-black-sh/10 text-black-sh placeholder:text-black-sh/30 focus:outline-none focus:bg-black-sh/10 transition-colors font-bold"
-            />
-            <button className="bg-black-sh text-accent-sh px-8 py-4 rounded-2xl font-syne font-black tracking-widest uppercase hover:scale-105 transition-transform shadow-xl">
-              ¡Me interesa!
-            </button>
-          </form>
+          <NewsletterForm source="homepage" />
           
           <p className="mt-8 text-black-sh/40 text-[10px] font-bold tracking-widest uppercase">
             Sumate a los +1.200 ahorradores que leen nuestro magazine

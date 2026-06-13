@@ -3,9 +3,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function HeroSection() {
+export default function HeroSection({ productCount }: { productCount?: number }) {
   const [query, setQuery] = useState('');
   const router = useRouter();
+
+  const formattedCount = productCount && productCount > 0
+    ? `${new Intl.NumberFormat('es-AR').format(productCount)}+`
+    : '24.000+';
 
   const handleSearch = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -36,7 +40,7 @@ export default function HeroSection() {
         </h1>
 
         <p className="mt-6 text-lg text-text-muted-sh font-light leading-relaxed max-w-lg animate-fade-up [animation-delay:200ms]">
-          Miles de productos analizados. Solo las mejores ofertas, verificadas y con envío gratis.
+          Miles de productos analizados. Solo las mejores ofertas, verificadas.
         </p>
 
         <form 
@@ -60,7 +64,7 @@ export default function HeroSection() {
 
         <div className="mt-12 flex gap-8 items-center animate-fade-up [animation-delay:400ms]">
           <div className="flex flex-col items-center">
-            <strong className="font-syne text-2xl font-extrabold text-white tracking-tight">24.000+</strong>
+            <strong className="font-syne text-2xl font-extrabold text-white tracking-tight">{formattedCount}</strong>
             <span className="text-[12px] text-text-muted-sh uppercase tracking-wider">Productos</span>
           </div>
           <div className="w-px h-8 bg-white/10"></div>

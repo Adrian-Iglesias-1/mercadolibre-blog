@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getProductsFromSheet } from '@/lib/google-sheets';
 import { normalize } from '@/lib/utils';
+import { getMacroCategorySlug, getMacroCategory } from '@/lib/macro-categories';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,19 +24,24 @@ export async function GET(request: NextRequest) {
 
     // 2. Filtrar por categoría si existe
     if (category) {
-      const normalizedReqCat = normalize(category);
+      // Si coincide con una categoría madre, filtramos por el mapeo macro
+      if (getMacroCategory(category)) {
+        products = products.filter(p => getMacroCategorySlug(p.category.name) === category);
+      } else {
+        const normalizedReqCat = normalize(category);
 
-      products = products.filter(p => {
-        const productCatSlug = p.category.slug ? normalize(p.category.slug) : '';
-        const productCatId = p.category.id ? normalize(p.category.id) : '';
-        const productCatName = p.category.name ? normalize(p.category.name) : '';
+        products = products.filter(p => {
+          const productCatSlug = p.category.slug ? normalize(p.category.slug) : '';
+          const productCatId = p.category.id ? normalize(p.category.id) : '';
+          const productCatName = p.category.name ? normalize(p.category.name) : '';
 
-        return productCatSlug === normalizedReqCat || 
-               productCatId === normalizedReqCat ||
-               productCatName === normalizedReqCat ||
-               productCatSlug.includes(normalizedReqCat) ||
-               normalizedReqCat.includes(productCatSlug);
-      });
+          return productCatSlug === normalizedReqCat ||
+                 productCatId === normalizedReqCat ||
+                 productCatName === normalizedReqCat ||
+                 productCatSlug.includes(normalizedReqCat) ||
+                 normalizedReqCat.includes(productCatSlug);
+        });
+      }
     }
 
     return NextResponse.json(products);
