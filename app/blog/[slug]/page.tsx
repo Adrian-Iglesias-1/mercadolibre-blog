@@ -1,10 +1,42 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
+import { Metadata } from 'next';
 import { getBlogPostBySlug } from '@/lib/blog';
 import { getProductsFromSheet } from '@/lib/google-sheets';
 import ProductCard from '@/components/ProductCard';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+
+const siteUrl = 'https://shophub.com.ar';
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const post = await getBlogPostBySlug(params.slug);
+
+  if (!post) {
+    return { title: 'Artículo no encontrado' };
+  }
+
+  return {
+    title: post.title,
+    description: post.excerpt,
+    alternates: { canonical: `${siteUrl}/blog/${post.slug}` },
+    openGraph: {
+      type: 'article',
+      title: post.title,
+      description: post.excerpt,
+      url: `${siteUrl}/blog/${post.slug}`,
+      publishedTime: post.publishedAt,
+      modifiedTime: post.updatedAt,
+      images: post.imageUrl ? [post.imageUrl] : ['/opengraph-image'],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title: post.title,
+      description: post.excerpt,
+      images: post.imageUrl ? [post.imageUrl] : ['/opengraph-image'],
+    },
+  };
+}
 
 async function RecommendedProducts({ query, category }: { query?: string, category: string }) {
   // Obtenemos los productos reales de la Google Sheet
@@ -69,8 +101,25 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
     notFound();
   }
 
+  const articleJsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    description: post.excerpt,
+    image: post.imageUrl ? [post.imageUrl] : undefined,
+    datePublished: post.publishedAt,
+    dateModified: post.updatedAt || post.publishedAt,
+    author: { '@type': 'Organization', name: post.author || 'ShopHub Team' },
+    publisher: { '@type': 'Organization', name: 'ShopHub AR' },
+    mainEntityOfPage: `${siteUrl}/blog/${post.slug}`,
+  };
+
   return (
     <div className="min-h-screen bg-black-sh pb-20">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
       <article className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-32">
         {/* Header */}
         <header className="mb-12">
