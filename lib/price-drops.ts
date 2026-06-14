@@ -1,9 +1,9 @@
 import { supabase } from './supabase';
 
-// Flag temporal: la fuente de precios (snapshot vía link de afiliado) no es
-// confiable todavía — leía el precio de la página equivocada. Se reactiva
-// cuando snapshot-prices.js lea desde source_url (la página real del producto).
-export const PRICE_DROPS_ENABLED = false;
+// Activado: snapshot-prices.js ya lee desde source_url (página real del producto,
+// verificado por título) y la lib excluye catálogo /p/. Las bajadas mostradas
+// son de items de un único vendedor con precio confiable.
+export const PRICE_DROPS_ENABLED = true;
 
 export interface PriceDrop {
   currentPrice: number;   // precio más reciente del historial

@@ -114,12 +114,26 @@ export async function getProductsFromSheet(): Promise<Product[]> {
   // 1. Intentar desde Supabase
   try {
     if (supabase) {
-      const { data, error, count } = await supabase
-        .from('products')
-        .select('*', { count: 'exact' })
-        .order('date_added', { ascending: false });
+      // Paginamos: Supabase corta en 1000 filas por query. Sin esto, los
+      // productos más viejos (incluidos los que tienen bajada de precio) quedan
+      // afuera y no se muestran nunca.
+      const data: any[] = [];
+      let lastError: any = null;
+      const pageSize = 1000;
+      for (let offset = 0; ; offset += pageSize) {
+        const { data: page, error } = await supabase
+          .from('products')
+          .select('*')
+          .order('date_added', { ascending: false })
+          .range(offset, offset + pageSize - 1);
+        if (error) { lastError = error; break; }
+        if (!page || page.length === 0) break;
+        data.push(...page);
+        if (page.length < pageSize) break;
+      }
+      const error = lastError;
 
-      if (!error && data && data.length > 0) {
+      if (data && data.length > 0) {
         return data.map((p: any) => ({
           id: p.id,
           title: p.title,
