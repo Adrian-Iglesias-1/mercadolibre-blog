@@ -53,10 +53,9 @@ function normalizarTitulo(t) {
   return t.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '').replace(/\s+/g, ' ').trim();
 }
 
-// ¿El título leído coincide con el que tenemos guardado? (exacto o tolerante a
-// recorte). Es la red de seguridad: si no coincide, NO guardamos el precio,
-// porque significa que terminamos en la página equivocada.
-function tituloCoincide(a, b) {
+// Match ESTRICTO (exacto o prefijo): se usa cuando seguimos el storefront y
+// estamos adivinando el producto. Conservador para no guardar precio equivocado.
+function tituloCoincideEstricto(a, b) {
   const x = normalizarTitulo(a);
   const y = normalizarTitulo(b);
   if (!x || !y) return false;
@@ -65,11 +64,32 @@ function tituloCoincide(a, b) {
   return false;
 }
 
+// Match TOLERANTE (solapamiento de palabras): se usa cuando ya estamos en una
+// URL confiable (source_url verificada). ML a veces reordena o edita el título
+// con el tiempo ("Suplemento Creatina Ena" → "Creatina Ena 300g"), así que
+// comparamos por palabras significativas en vez de exigir coincidencia literal.
+// Sigue rechazando productos completamente distintos (404/redirect a otra cosa).
+function tituloParecido(a, b) {
+  const x = normalizarTitulo(a);
+  const y = normalizarTitulo(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const wa = new Set(x.split(' ').filter(w => w.length >= 3));
+  const wb = new Set(y.split(' ').filter(w => w.length >= 3));
+  if (wa.size === 0 || wb.size === 0) return false;
+  let comunes = 0;
+  for (const w of wa) if (wb.has(w)) comunes++;
+  const ratio = comunes / Math.min(wa.size, wb.size);
+  return comunes >= 3 || ratio >= 0.6;
+}
+
 // ─── RESOLVER LA URL REAL DEL PRODUCTO ────────────────────
 // Prioridad: source_url guardado → seguir el link de afiliado hasta el producto.
 async function resolverUrlReal(page, prod) {
+  // Devuelve { url, confiable }. confiable=true cuando viene de source_url ya
+  // verificado → ahí el título puede haber cambiado y usamos match tolerante.
   if (prod.source_url && /MLA/i.test(prod.source_url)) {
-    return prod.source_url;
+    return { url: prod.source_url, confiable: true };
   }
 
   // Fallback: entrar al link de afiliado (storefront) y extraer el link al
@@ -97,10 +117,10 @@ async function resolverUrlReal(page, prod) {
       return featured || productos[0] || null;
     });
 
-    return realUrl;
+    return { url: realUrl, confiable: false };
   } catch (err) {
     console.log(`   ⚠️ No se pudo resolver URL real: ${err.message}`);
-    return null;
+    return { url: null, confiable: false };
   }
 }
 
@@ -171,7 +191,7 @@ async function main() {
     console.log(`\n[${i + 1}/${products.length}] ${p.title?.slice(0, 55)}`);
 
     try {
-      const urlReal = await resolverUrlReal(page, p);
+      const { url: urlReal, confiable } = await resolverUrlReal(page, p);
       if (!urlReal) {
         console.log('   ⚠️ Sin URL real, se omite.');
         fallidos++;
@@ -182,7 +202,12 @@ async function main() {
       const precioNum = limpiarPrecio(precio);
 
       // Red de seguridad: el título leído debe coincidir con el guardado.
-      if (!tituloCoincide(nombre, p.title)) {
+      // URL confiable (source_url ya verificado) → match tolerante (ML puede
+      // haber reordenado/editado el título). Storefront → estricto (adivinamos).
+      const coincide = confiable
+        ? tituloParecido(nombre, p.title)
+        : tituloCoincideEstricto(nombre, p.title);
+      if (!coincide) {
         console.log(`   🚫 Título no coincide (${nombre?.slice(0, 40)}). Se descarta para no guardar precio equivocado.`);
         descartados++;
         continue;
