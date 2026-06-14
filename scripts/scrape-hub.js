@@ -447,6 +447,35 @@ async function backfillMlaIds(backfill) {
   console.log(`   ✅ mla_id backfilleado en ${ok}/${entradas.length} productos. La próxima corrida los salta sin abrir el navegador.`);
 }
 
+// ─── BACKFILL DE source_url EN EXISTENTES ─────────────────
+
+async function backfillSourceUrls(backfillSource) {
+  if (!backfillSource || backfillSource.size === 0) return;
+
+  const entradas = [...backfillSource.entries()]; // [product_url, source_url]
+  console.log(`\n🩹 Completando source_url en ${entradas.length} productos que reaparecieron en el hub...`);
+
+  let ok = 0;
+  const LOTE = 20;
+  for (let i = 0; i < entradas.length; i += LOTE) {
+    const chunk = entradas.slice(i, i + LOTE);
+    const res = await Promise.all(chunk.map(([url, sourceUrl]) =>
+      supabase.from('products').update({ source_url: sourceUrl }).eq('product_url', url)
+    ));
+    const errs = res.filter(r => r.error);
+    ok += chunk.length - errs.length;
+    if (errs.length) {
+      const msg = errs[0].error.message;
+      if (/source_url/i.test(msg)) {
+        console.warn('   ⚠️ La columna source_url no existe; corré scripts/add-source-url-column.sql.');
+        return;
+      }
+      console.warn(`   ⚠️ ${errs.length} updates fallaron en el lote: ${msg}`);
+    }
+  }
+  console.log(`   ✅ source_url completado en ${ok}/${entradas.length}. Ahora snapshot-prices les lee el precio.`);
+}
+
 // ─── FUNCIÓN PRINCIPAL ────────────────────────────────────
 
 async function main() {
@@ -495,6 +524,35 @@ async function main() {
     return null;
   };
 
+  // Índice paralelo: productos que YA existen pero les falta source_url. Cuando
+  // reaparecen en el hub les completamos source_url con la URL real del listado
+  // (el hub da la URL del producto, que es justo lo que necesita snapshot-prices).
+  const faltaSource = { byId: new Map(), byTitle: new Map(), list: [] };
+  const registrarFaltaSource = (productUrl, mlaId, title) => {
+    const t = normalizarTitulo(title);
+    if (mlaId) faltaSource.byId.set(mlaId, productUrl);
+    if (t) {
+      if (!faltaSource.byTitle.has(t)) faltaSource.byTitle.set(t, productUrl);
+      faltaSource.list.push({ norm: t, product_url: productUrl });
+    }
+  };
+  const buscarFaltaSource = ({ mlaId, title }) => {
+    if (mlaId && faltaSource.byId.has(mlaId)) return faltaSource.byId.get(mlaId);
+    const t = normalizarTitulo(title);
+    if (!t) return null;
+    if (faltaSource.byTitle.has(t)) return faltaSource.byTitle.get(t);
+    if (t.length >= MIN_PREFIX) {
+      for (const it of faltaSource.list) {
+        if (it.norm.length >= MIN_PREFIX &&
+            (it.norm.startsWith(t) || t.startsWith(it.norm))) {
+          return it.product_url;
+        }
+      }
+    }
+    return null;
+  };
+  const backfillSource = new Map(); // product_url → source_url (URL real del hub)
+
   // Desde JSON local
   if (fs.existsSync(PRODUCTS_JSON_PATH)) {
     const localData = JSON.parse(fs.readFileSync(PRODUCTS_JSON_PATH, 'utf8') || '[]');
@@ -522,23 +580,36 @@ async function main() {
     });
   }
 
-  // Desde Supabase (intentamos traer mla_id; si la columna no existe, sin ella)
-  let sbData = null;
-  let sbErr = null;
-  ({ data: sbData, error: sbErr } = await supabase
-    .from('products')
-    .select('product_url, title, mla_id'));
-  if (sbErr && /mla_id/i.test(sbErr.message)) {
-    ({ data: sbData, error: sbErr } = await supabase
+  // Desde Supabase — paginado (corta en 1000 por query) para ver TODOS los
+  // productos, no solo los primeros 1000.
+  let sbCols = 'product_url, title, mla_id, source_url';
+  let pf = 0;
+  const pageSize = 1000;
+  while (true) {
+    let { data: sbData, error: sbErr } = await supabase
       .from('products')
-      .select('product_url, title'));
-  }
-  if (!sbErr && sbData) {
-    sbData.forEach(p => registrarExistente({
-      url: p.product_url,
-      mlaId: p.mla_id || null,
-      title: p.title,
-    }));
+      .select(sbCols)
+      .range(pf, pf + pageSize - 1);
+    if (sbErr && /mla_id|source_url/i.test(sbErr.message)) {
+      // Columnas nuevas no existen aún: reintentamos sin ellas
+      sbCols = 'product_url, title';
+      ({ data: sbData, error: sbErr } = await supabase
+        .from('products')
+        .select(sbCols)
+        .range(pf, pf + pageSize - 1));
+    }
+    if (sbErr || !sbData || sbData.length === 0) break;
+    sbData.forEach(p => {
+      registrarExistente({
+        url: p.product_url,
+        mlaId: p.mla_id || null,
+        title: p.title,
+      });
+      // Si existe pero le falta source_url, lo marcamos para completarlo
+      if (!p.source_url) registrarFaltaSource(p.product_url, p.mla_id || null, p.title);
+    });
+    if (sbData.length < pageSize) break;
+    pf += pageSize;
   }
 
   console.log(`✅ Índice de existentes → ${titulosExactos.size} títulos, ${idsExistentes.size} mla_id, ${urlsExistentes.size} URLs.`);
@@ -584,6 +655,10 @@ async function main() {
       const hit = buscarExistente({ mlaId: it.mlaId, title: it.title });
       if (hit) {
         if (hit.product_url && it.mlaId) backfill.set(hit.product_url, it.mlaId);
+        // Completar source_url de los existentes que no lo tienen, con la URL
+        // real del hub (lo que necesita snapshot-prices para leer el precio bien).
+        const pu = buscarFaltaSource({ mlaId: it.mlaId, title: it.title });
+        if (pu && it.url) backfillSource.set(pu, it.url.split('?')[0]);
         return false;
       }
       return true;
@@ -625,6 +700,8 @@ async function main() {
 
     // Backfill de mla_id en los legacy que matcheamos por título.
     await backfillMlaIds(backfill);
+    // Backfill de source_url en existentes que reaparecieron en el hub.
+    await backfillSourceUrls(backfillSource);
 
   } catch (e) {
     console.log(`\n❌ ERROR CRÍTICO: ${e.message}`);
