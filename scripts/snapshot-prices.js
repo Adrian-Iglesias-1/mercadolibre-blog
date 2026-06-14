@@ -76,7 +76,9 @@ async function resolverUrlReal(page, prod) {
   // producto destacado, igual que cuando el usuario clickea "ir al producto".
   try {
     await page.goto(prod.product_url, { waitUntil: 'networkidle2', timeout: 30000 });
-    await sleep(2000);
+    // Esperar a que rendericen las cards de producto del storefront (SPA)
+    await page.waitForSelector('a[href*="/p/MLA"], a[href*="/MLA-"]', { timeout: 8000 }).catch(() => {});
+    await sleep(1500);
 
     const realUrl = await page.evaluate(() => {
       const anchors = Array.from(document.querySelectorAll('a[href]')).map(a => a.href);
@@ -84,7 +86,15 @@ async function resolverUrlReal(page, prod) {
       const esProducto = (h) =>
         !/\/social\//.test(h) &&
         (/\/p\/MLA\d+/i.test(h) || /\/MLA-\d+/i.test(h) || /articulo\.mercadolibre/i.test(h));
-      return anchors.find(esProducto) || null;
+      const productos = anchors.filter(esProducto);
+      // El producto del link de afiliado es el DESTACADO, no el primero de la
+      // grilla de recomendaciones. Su href trae marcadores card-featured /
+      // reco_item_pos=0. Si no lo encontramos, caemos al primero (la red de
+      // seguridad por título descarta igual si no coincide).
+      const featured =
+        productos.find((h) => /card-featured/i.test(h)) ||
+        productos.find((h) => /[?&]reco_item_pos=0(?:&|$)/.test(h));
+      return featured || productos[0] || null;
     });
 
     return realUrl;
