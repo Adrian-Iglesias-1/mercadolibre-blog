@@ -49,12 +49,21 @@ export async function getPriceDropsMap(minPct = 5): Promise<Map<string, PriceDro
   );
   if (history.length === 0) return result;
 
-  const products = await fetchAll<{ product_url: string; price: number }>(
+  const products = await fetchAll<{ product_url: string; price: number; source_url: string | null }>(
     'products',
-    'product_url, price'
+    'product_url, price, source_url'
   );
   const registered = new Map<string, number>();
-  products.forEach((p) => registered.set(p.product_url, Number(p.price) || 0));
+  // Solo consideramos productos "confiables" para bajadas:
+  //  - tienen source_url (el precio se leyó de la página real, verificado por título)
+  //  - NO son de catálogo (/p/MLA): ahí el precio es del buy-box ganador, que
+  //    rota entre vendedores → "bajó X%" engañaría aunque el precio sea correcto.
+  const reliable = new Set<string>();
+  products.forEach((p) => {
+    registered.set(p.product_url, Number(p.price) || 0);
+    const src = p.source_url || '';
+    if (src && !/\/p\/MLA/i.test(src)) reliable.add(p.product_url);
+  });
 
   // Agrupar historial por producto (ya viene ordenado asc por captured_at)
   const byProduct = new Map<string, number[]>();
@@ -66,6 +75,7 @@ export async function getPriceDropsMap(minPct = 5): Promise<Map<string, PriceDro
   }
 
   for (const [url, prices] of byProduct.entries()) {
+    if (!reliable.has(url)) continue; // solo items de un vendedor con precio verificado
     const current = prices[prices.length - 1];
     const histMax = Math.max(...prices);
     const reference = Math.max(histMax, registered.get(url) || 0);
