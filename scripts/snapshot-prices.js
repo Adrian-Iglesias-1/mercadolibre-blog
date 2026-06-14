@@ -84,47 +84,16 @@ function tituloParecido(a, b) {
 }
 
 // ─── RESOLVER LA URL REAL DEL PRODUCTO ────────────────────
-// Prioridad: source_url guardado → seguir el link de afiliado hasta el producto.
+// Solo usamos source_url (la URL real, verificada, que guarda el scraper).
+// El fallback de seguir el link de afiliado se eliminó: headless cae siempre
+// en el storefront genérico del afiliado (mostraba la "Rampa Perros" para
+// todos), nunca el producto específico → puro desperdicio de tiempo.
+// Para poblar source_url en productos viejos, re-scrapealos (npm run scrape).
 async function resolverUrlReal(page, prod) {
-  // Devuelve { url, confianza }:
-  //   'source'  → source_url ya verificado (alta confianza)
-  //   'featured'→ del storefront via marcador card-featured/pos=0 (alta confianza)
-  //   'guess'   → primer producto de la grilla a ciegas (baja confianza)
-  // Con 'source'/'featured' usamos match tolerante (el título pudo cambiar);
-  // con 'guess' usamos match estricto.
   if (prod.source_url && /MLA/i.test(prod.source_url)) {
     return { url: prod.source_url, confianza: 'source' };
   }
-
-  // Fallback: entrar al link de afiliado (storefront) y extraer el link al
-  // producto destacado, igual que cuando el usuario clickea "ir al producto".
-  try {
-    await page.goto(prod.product_url, { waitUntil: 'networkidle2', timeout: 30000 });
-    // Esperar a que rendericen las cards de producto del storefront (SPA)
-    await page.waitForSelector('a[href*="/p/MLA"], a[href*="/MLA-"]', { timeout: 8000 }).catch(() => {});
-    await sleep(1500);
-
-    const res = await page.evaluate(() => {
-      const anchors = Array.from(document.querySelectorAll('a[href]')).map(a => a.href);
-      // Patrones de URL de producto real (no del storefront /social/)
-      const esProducto = (h) =>
-        !/\/social\//.test(h) &&
-        (/\/p\/MLA\d+/i.test(h) || /\/MLA-\d+/i.test(h) || /articulo\.mercadolibre/i.test(h));
-      const productos = anchors.filter(esProducto);
-      // El producto del link de afiliado es el DESTACADO, no el primero de la
-      // grilla. Su href trae marcadores card-featured / reco_item_pos=0.
-      const featured =
-        productos.find((h) => /card-featured/i.test(h)) ||
-        productos.find((h) => /[?&]reco_item_pos=0(?:&|$)/.test(h));
-      if (featured) return { url: featured, viaFeatured: true };
-      return { url: productos[0] || null, viaFeatured: false };
-    });
-
-    return { url: res.url, confianza: res.viaFeatured ? 'featured' : 'guess' };
-  } catch (err) {
-    console.log(`   ⚠️ No se pudo resolver URL real: ${err.message}`);
-    return { url: null, confianza: 'guess' };
-  }
+  return { url: null, confianza: 'none' };
 }
 
 // ─── LEER TÍTULO + PRECIO DE LA PÁGINA REAL ───────────────
@@ -167,7 +136,7 @@ async function main() {
     from += size;
   }
 
-  console.log('🔖 snapshot-prices v4 — match tolerante universal');
+  console.log('🔖 snapshot-prices v5 — solo source_url (sin storefront)');
   console.log(`✅ ${products.length} productos a revisar.`);
 
   const browser = await puppeteer.launch({
@@ -185,14 +154,20 @@ async function main() {
   await esperarEnter('\n👉 Si la página te pide login, iniciá sesión ahora en la ventana de Chrome.\n   Cuando estés logueado, volvé acá y presioná ENTER para arrancar el snapshot de precios...\n');
 
   const filas = [];
-  const backfillSource = []; // { id, source_url, mla_id }
   let ok = 0;
   let fallidos = 0;
   let descartados = 0;
+  let sinSource = 0;
 
-  for (let i = 0; i < products.length; i++) {
-    const p = products[i];
-    console.log(`\n[${i + 1}/${products.length}] ${p.title?.slice(0, 55)}`);
+  // Procesamos primero los que tienen source_url (los demás se saltean al
+  // instante, no tiene sentido abrir el navegador en ellos).
+  const conSource = products.filter((p) => p.source_url && /MLA/i.test(p.source_url));
+  sinSource = products.length - conSource.length;
+  console.log(`📍 ${conSource.length} con source_url (se procesan) · ${sinSource} sin source_url (se saltean — re-scrapealos para poblarlo)\n`);
+
+  for (let i = 0; i < conSource.length; i++) {
+    const p = conSource[i];
+    console.log(`\n[${i + 1}/${conSource.length}] ${p.title?.slice(0, 55)}`);
 
     try {
       const { url: urlReal, confianza } = await resolverUrlReal(page, p);
@@ -225,10 +200,6 @@ async function main() {
       console.log(`   💰 Precio real: $${precioNum} (registrado: $${p.price})`);
       ok++;
 
-      // Backfill de source_url / mla_id si no lo teníamos
-      if (!p.source_url) {
-        backfillSource.push({ id: p.id, source_url: urlReal, mla_id: extraerMlaId(urlReal) });
-      }
     } catch (err) {
       console.log(`   ❌ Error: ${err.message}`);
       fallidos++;
@@ -237,17 +208,13 @@ async function main() {
     if (filas.length >= 25) {
       await guardarLote(filas.splice(0, filas.length));
     }
-    if (backfillSource.length >= 25) {
-      await guardarBackfill(backfillSource.splice(0, backfillSource.length));
-    }
 
     await sleep(1200);
   }
 
   if (filas.length > 0) await guardarLote(filas);
-  if (backfillSource.length > 0) await guardarBackfill(backfillSource);
 
-  console.log(`\n✅ Snapshot completo: ${ok} precios guardados, ${descartados} descartados por título, ${fallidos} fallidos.`);
+  console.log(`\n✅ Snapshot completo: ${ok} guardados, ${descartados} descartados por título, ${fallidos} fallidos, ${sinSource} sin source_url (salteados).`);
   await browser.close();
 }
 
@@ -257,22 +224,6 @@ async function guardarLote(filas) {
     console.error(`   ❌ Error guardando lote de ${filas.length} precios:`, error.message);
   } else {
     console.log(`   💾 Lote de ${filas.length} precios guardado en price_history.`);
-  }
-}
-
-async function guardarBackfill(items) {
-  const res = await Promise.all(items.map(it =>
-    supabase.from('products').update({ source_url: it.source_url, mla_id: it.mla_id }).eq('id', it.id)
-  ));
-  const errs = res.filter(r => r.error);
-  if (errs.length) {
-    if (/source_url|mla_id/i.test(errs[0].error.message)) {
-      console.warn('   ⚠️ Falta columna source_url/mla_id. Corré las migraciones en scripts/.');
-    } else {
-      console.warn(`   ⚠️ ${errs.length} backfills fallaron: ${errs[0].error.message}`);
-    }
-  } else {
-    console.log(`   🩹 source_url backfilleado en ${items.length} productos.`);
   }
 }
 
