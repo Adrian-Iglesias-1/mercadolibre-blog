@@ -167,6 +167,7 @@ async function main() {
     from += size;
   }
 
+  console.log('🔖 snapshot-prices v4 — match tolerante universal');
   console.log(`✅ ${products.length} productos a revisar.`);
 
   const browser = await puppeteer.launch({
@@ -204,15 +205,12 @@ async function main() {
       const { nombre, precio } = await leerProducto(page, urlReal);
       const precioNum = limpiarPrecio(precio);
 
-      // Red de seguridad: el título leído debe coincidir con el guardado.
-      // Alta confianza (source_url o featured) → match tolerante (ML puede haber
-      // reordenado/editado el título). Baja confianza (guess) → estricto.
-      const altaConfianza = confianza === 'source' || confianza === 'featured';
-      const coincide = altaConfianza
-        ? tituloParecido(nombre, p.title)
-        : tituloCoincideEstricto(nombre, p.title);
-      if (!coincide) {
-        console.log(`   🚫 Título no coincide (${nombre?.slice(0, 40)}). Se descarta para no guardar precio equivocado.`);
+      // Red de seguridad: el título leído debe parecerse al guardado. Usamos
+      // match tolerante (solapamiento de palabras) en todos los casos: el
+      // storefront lee el producto correcto pero ML reordena/edita el título.
+      // tituloParecido igual rechaza productos distintos (freezer != rampa).
+      if (!tituloParecido(nombre, p.title)) {
+        console.log(`   🚫 Título no coincide (${nombre?.slice(0, 40)}) [${confianza}]. Se descarta.`);
         descartados++;
         continue;
       }
