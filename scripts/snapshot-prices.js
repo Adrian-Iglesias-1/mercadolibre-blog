@@ -86,10 +86,14 @@ function tituloParecido(a, b) {
 // ─── RESOLVER LA URL REAL DEL PRODUCTO ────────────────────
 // Prioridad: source_url guardado → seguir el link de afiliado hasta el producto.
 async function resolverUrlReal(page, prod) {
-  // Devuelve { url, confiable }. confiable=true cuando viene de source_url ya
-  // verificado → ahí el título puede haber cambiado y usamos match tolerante.
+  // Devuelve { url, confianza }:
+  //   'source'  → source_url ya verificado (alta confianza)
+  //   'featured'→ del storefront via marcador card-featured/pos=0 (alta confianza)
+  //   'guess'   → primer producto de la grilla a ciegas (baja confianza)
+  // Con 'source'/'featured' usamos match tolerante (el título pudo cambiar);
+  // con 'guess' usamos match estricto.
   if (prod.source_url && /MLA/i.test(prod.source_url)) {
-    return { url: prod.source_url, confiable: true };
+    return { url: prod.source_url, confianza: 'source' };
   }
 
   // Fallback: entrar al link de afiliado (storefront) y extraer el link al
@@ -100,7 +104,7 @@ async function resolverUrlReal(page, prod) {
     await page.waitForSelector('a[href*="/p/MLA"], a[href*="/MLA-"]', { timeout: 8000 }).catch(() => {});
     await sleep(1500);
 
-    const realUrl = await page.evaluate(() => {
+    const res = await page.evaluate(() => {
       const anchors = Array.from(document.querySelectorAll('a[href]')).map(a => a.href);
       // Patrones de URL de producto real (no del storefront /social/)
       const esProducto = (h) =>
@@ -108,19 +112,18 @@ async function resolverUrlReal(page, prod) {
         (/\/p\/MLA\d+/i.test(h) || /\/MLA-\d+/i.test(h) || /articulo\.mercadolibre/i.test(h));
       const productos = anchors.filter(esProducto);
       // El producto del link de afiliado es el DESTACADO, no el primero de la
-      // grilla de recomendaciones. Su href trae marcadores card-featured /
-      // reco_item_pos=0. Si no lo encontramos, caemos al primero (la red de
-      // seguridad por título descarta igual si no coincide).
+      // grilla. Su href trae marcadores card-featured / reco_item_pos=0.
       const featured =
         productos.find((h) => /card-featured/i.test(h)) ||
         productos.find((h) => /[?&]reco_item_pos=0(?:&|$)/.test(h));
-      return featured || productos[0] || null;
+      if (featured) return { url: featured, viaFeatured: true };
+      return { url: productos[0] || null, viaFeatured: false };
     });
 
-    return { url: realUrl, confiable: false };
+    return { url: res.url, confianza: res.viaFeatured ? 'featured' : 'guess' };
   } catch (err) {
     console.log(`   ⚠️ No se pudo resolver URL real: ${err.message}`);
-    return { url: null, confiable: false };
+    return { url: null, confianza: 'guess' };
   }
 }
 
@@ -191,7 +194,7 @@ async function main() {
     console.log(`\n[${i + 1}/${products.length}] ${p.title?.slice(0, 55)}`);
 
     try {
-      const { url: urlReal, confiable } = await resolverUrlReal(page, p);
+      const { url: urlReal, confianza } = await resolverUrlReal(page, p);
       if (!urlReal) {
         console.log('   ⚠️ Sin URL real, se omite.');
         fallidos++;
@@ -202,9 +205,10 @@ async function main() {
       const precioNum = limpiarPrecio(precio);
 
       // Red de seguridad: el título leído debe coincidir con el guardado.
-      // URL confiable (source_url ya verificado) → match tolerante (ML puede
-      // haber reordenado/editado el título). Storefront → estricto (adivinamos).
-      const coincide = confiable
+      // Alta confianza (source_url o featured) → match tolerante (ML puede haber
+      // reordenado/editado el título). Baja confianza (guess) → estricto.
+      const altaConfianza = confianza === 'source' || confianza === 'featured';
+      const coincide = altaConfianza
         ? tituloParecido(nombre, p.title)
         : tituloCoincideEstricto(nombre, p.title);
       if (!coincide) {
